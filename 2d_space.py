@@ -11,16 +11,14 @@ background_color = (0, 0, 0)
 screen.fill(background_color)
 
 points = { #(x,y)
-    '1' : [-100,100],
-    '2' : [100, 100],
-    '3' : [100,-100],
-    '4' : [-100,-100],
-    '5' : [0,-100],
-    '6' : [55, - 75,2],
+    '1' : [-100.0,  100.0],
+    '2' : [ 100.0,  100.0],
+    '3' : [ 100.0, -100.0],
+    '4' : [-100.0, -100.0],
 }
 
 def print_point(_point):
-    pygame.draw.rect(screen, (0, 255, 0), (center[0] - points[_point][0], center[1] - points[_point][1], 5, 5))
+    pygame.draw.rect(screen, (0, 255, 0), (center[0] + points[_point][0], center[1] - points[_point][1], 5, 5))
 
 def get_radius(_point):
     radius = math.hypot(points[_point][0], points[_point][1])
@@ -29,14 +27,20 @@ def get_radius(_point):
 def get_angle(_point):
     radius = get_radius(_point)
     side = points[_point][1]
-    result = side / radius
+    result = math.degrees(math.acos(side / radius))
     if points[_point][0] > 0:
-        return math.degrees(math.acos(result))
+        return result
     else:
-        return 360 - math.degrees(math.acos(result))
+        return 360 - result
 
-def add_angle(_point):
-    angle = get_angle(_point)
+def add_angle(_point, add_ang=0):
+    angle = get_angle(_point) - add_ang
+    radius = get_radius(_point)
+    radius * math.cos(math.radians(angle))
+    y_cord = round(radius * math.cos(math.radians(angle)), 2)
+    x_cord = round(radius * math.sin(math.radians(angle)), 2)
+    points[_point] = [x_cord, y_cord]
+
 
 running = True
 while running:
@@ -54,8 +58,9 @@ while running:
     screen.fill(background_color)
     for point in points:
         print_point(point)
+        add_angle(point, 1)
 
-    print(get_angle('6'))
     pygame.display.flip()
     clock.tick(60)
+print(points)
 pygame.quit()
