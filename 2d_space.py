@@ -11,31 +11,17 @@ background_color = (0, 5, 0)
 screen.fill(background_color)
 
 points = { #(x,y,z)
-    #'1' : [-100.0,  100.0,  100.0],
-    #'2' : [ 100.0,  100.0,  100,0],
-    #'3' : [-100.0, -100.0, -100.0],
-    #'4' : [ 100.0, -100.0, -100.0],
-    #'5' : [-100.0,  100.0, -100.0],
-    #'6' : [ 100.0,  100.0, -100,0],
-    #'7' : [-100.0, -100.0,  100.0],
-    #'8' : [ 100.0, -100.0,  100.0],
+    '1' : [-100.0,  100.0,  100.0],
+    '2' : [ 100.0,  100.0,  100,0],
+    '3' : [-100.0, -100.0, -100.0],
+    '4' : [ 100.0, -100.0, -100.0],
+    '5' : [-100.0,  100.0, -100.0],
+    '6' : [ 100.0,  100.0, -100,0],
+    '7' : [-100.0, -100.0,  100.0],
+    '8' : [ 100.0, -100.0,  100.0],
 }
 
-for i in range(-20, 21):
-    points['x1' + str(i)] = [ i * 5, 100, 100]
-    points['x2' + str(i)] = [ i * 5,-100, 100]
-    points['x3' + str(i)] = [ i * 5,-100,-100]
-    points['x4' + str(i)] = [ i * 5, 100,-100]
-    points['y1' + str(i)] = [ 100, i * 5, 100]
-    points['y2' + str(i)] = [-100, i * 5, 100]
-    points['y3' + str(i)] = [-100, i * 5,-100]
-    points['y4' + str(i)] = [ 100, i * 5,-100]
-    points['z1' + str(i)] = [ 100, 100, i * 5]
-    points['z2' + str(i)] = [-100, 100, i * 5]
-    points['z3' + str(i)] = [-100,-100, i * 5]
-    points['z4' + str(i)] = [ 100,-100, i * 5]
-
-def print_point(_dict,_point,local_center):
+def print_point(_dict,_point,local_center,):
     mult = ((_dict[_point][2] + 100) / 200) + 2
     if 55 <= (_dict[_point][2] + 100) + 55 <= 255:
         _color = (_dict[_point][2] + 100) + 55
@@ -44,38 +30,69 @@ def print_point(_dict,_point,local_center):
     else:
         _color = 255
     pygame.draw.rect(screen, (0, _color, 0),
-                    (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult, 5, 5))
+                    (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult, 10, 10))
 
-def get_angle(_point,index):
-    radius = math.hypot(points[_point][index[0]], points[_point][index[1]])
-    side = points[_point][index[1]]
-    if radius != 0:
-        result = math.degrees(math.acos(side / radius))
-    else:
-        return 0
-    if points[_point][index[0]] > 0:
-        return result
-    else:
-        return 360 - result
+def print_polygon(_dict,_point,local_center, polygon):
+    mult = ((_dict[_point][2] + 100) / 200) + 2
+    if _dict[_point][0] > 0:
+        polygon.pol_dict['x+'][_point] = (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult)
+    if _dict[_point][0] < 0:
+        polygon.pol_dict['x-'][_point] = (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult)
+    if _dict[_point][0] > 0:
+        polygon.pol_dict['y+'][_point] = (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult)
+    if _dict[_point][0] < 0:
+        polygon.pol_dict['y-'][_point] = (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult)
+    if _dict[_point][0] > 0:
+        polygon.pol_dict['z+'][_point] = (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult)
+    if _dict[_point][0] < 0:
+        polygon.pol_dict['z-'][_point] = (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult)
 
-def add_angle(_point, index, add_ang=0):
-    angle = get_angle(_point, index) - add_ang
-    radius = math.hypot(points[_point][index[0]], points[_point][index[1]])
-    radius * math.cos(math.radians(angle))
-    if index == (0,1):
-        x_cord = round(radius * math.sin(math.radians(angle)), 2)
-        y_cord = round(radius * math.cos(math.radians(angle)), 2)
-        z_cord = points[_point][2]
-    if index == (0, 2):
-        x_cord = round(radius * math.sin(math.radians(angle)), 2)
-        y_cord = points[_point][1]
-        z_cord = round(radius * math.cos(math.radians(angle)), 2)
-    if index == (1, 2):
-        x_cord = points[_point][0]
-        y_cord = round(radius * math.sin(math.radians(angle)), 2)
-        z_cord = round(radius * math.cos(math.radians(angle)), 2)
-    points[_point] = [x_cord, y_cord, z_cord]
 
+
+class CordChanger:
+    def __init__(self, input_points):
+        self.point_dict = input_points
+        self.pol_dict = {
+            'x+' : {},
+            'x-' : {},
+            'y+' : {},
+            'y-' : {},
+            'z+' : {},
+            'z-' : {},
+        }
+        self.dots = []
+
+    def __get_angle(self,_point, index):
+        radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
+        side = self.point_dict[_point][index[1]]
+        if radius != 0:
+            result = math.degrees(math.acos(side / radius))
+        else:
+            return 0
+        if self.point_dict[_point][index[0]] > 0:
+            return result
+        else:
+            return 360 - result
+
+    def add_angle(self,_point, index, add_ang=0):
+        angle = self.__get_angle(_point, index) - add_ang
+        radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
+        radius * math.cos(math.radians(angle))
+        if index == (0, 1):
+            x_cord = round(radius * math.sin(math.radians(angle)), 2)
+            y_cord = round(radius * math.cos(math.radians(angle)), 2)
+            z_cord = self.point_dict[_point][2]
+        if index == (0, 2):
+            x_cord = round(radius * math.sin(math.radians(angle)), 2)
+            y_cord = self.point_dict[_point][1]
+            z_cord = round(radius * math.cos(math.radians(angle)), 2)
+        if index == (1, 2):
+            x_cord = self.point_dict[_point][0]
+            y_cord = round(radius * math.sin(math.radians(angle)), 2)
+            z_cord = round(radius * math.cos(math.radians(angle)), 2)
+        self.point_dict[_point] = [x_cord, y_cord, z_cord]
+
+square = CordChanger(points)
 running = True
 while running:
     """ BRAIN """
@@ -88,25 +105,33 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
+    if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
         for point in points:
-            add_angle(point, (0,2),1)
-    elif keys[pygame.K_RIGHT]:
+            square.add_angle(point, (0,2),1)
+    elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
         for point in points:
-            add_angle(point,(0,2), -1)
-    elif keys[pygame.K_UP]:
+            square.add_angle(point,(0,2), -1)
+    if keys[pygame.K_UP] and not keys[pygame.K_DOWN]:
         for point in points:
-            add_angle(point, (1,2),-1)
-    elif keys[pygame.K_DOWN]:
+            square.add_angle(point, (1,2),-1)
+    elif keys[pygame.K_DOWN] and not keys[pygame.K_UP]:
         for point in points:
-            add_angle(point,(1,2), 1)
+            square.add_angle(point,(1,2), 1)
 
     """ OUTPUT """
     screen.fill(background_color)
     pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
     for point in points:
-        print_point(points,point,center)
+        print_point(points, point, center)
+        #print_polygon(points,point,center,square)
 
+    '''
+    for keys in square.pol_dict:
+        square.dots = []
+        for keys2 in square.pol_dict[keys]:
+           square.dots.append(square.pol_dict[keys][keys2])
+        pygame.draw.polygon(screen, (0, 255, 0), square.dots)
+    '''
 
     pygame.display.flip()
     clock.tick(60)
