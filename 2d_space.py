@@ -7,7 +7,7 @@ pygame.init()
 screen = pygame.display.set_mode((1980, 1080))
 screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
-background_color = (0, 0, 0)
+background_color = (0, 5, 0)
 screen.fill(background_color)
 
 points = { #(x,y,z)
@@ -21,7 +21,7 @@ points = { #(x,y,z)
     #'8' : [ 100.0, -100.0,  100.0],
 }
 
-for i in range(-20, 20):
+for i in range(-20, 21):
     points['x1' + str(i)] = [ i * 5, 100, 100]
     points['x2' + str(i)] = [ i * 5,-100, 100]
     points['x3' + str(i)] = [ i * 5,-100,-100]
@@ -35,17 +35,19 @@ for i in range(-20, 20):
     points['z3' + str(i)] = [-100,-100, i * 5]
     points['z4' + str(i)] = [ 100,-100, i * 5]
 
-def print_point(_dict,_point):
+def print_point(_dict,_point,local_center):
     mult = ((_dict[_point][2] + 100) / 200) + 2
-    pygame.draw.rect(screen, (0, 255, 0),
-                    (center[0] + _dict[_point][0] * mult, center[1] - _dict[_point][1] * mult, 5, 5))
-
-def get_radius(_point,index):
-    radius = math.hypot(points[_point][index[0]], points[_point][index[1]])
-    return radius
+    if 55 <= (_dict[_point][2] + 100) + 55 <= 255:
+        _color = (_dict[_point][2] + 100) + 55
+    elif 55 > (_dict[_point][2] + 100) + 55:
+        _color = 55
+    else:
+        _color = 255
+    pygame.draw.rect(screen, (0, _color, 0),
+                    (local_center[0] + _dict[_point][0] * mult, local_center[1] - _dict[_point][1] * mult, 5, 5))
 
 def get_angle(_point,index):
-    radius = get_radius(_point,index)
+    radius = math.hypot(points[_point][index[0]], points[_point][index[1]])
     side = points[_point][index[1]]
     if radius != 0:
         result = math.degrees(math.acos(side / radius))
@@ -58,7 +60,7 @@ def get_angle(_point,index):
 
 def add_angle(_point, index, add_ang=0):
     angle = get_angle(_point, index) - add_ang
-    radius = get_radius(_point, index)
+    radius = math.hypot(points[_point][index[0]], points[_point][index[1]])
     radius * math.cos(math.radians(angle))
     if index == (0,1):
         x_cord = round(radius * math.sin(math.radians(angle)), 2)
@@ -101,12 +103,11 @@ while running:
 
     """ OUTPUT """
     screen.fill(background_color)
-    #pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
+    pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
     for point in points:
-        print_point(points,point)
+        print_point(points,point,center)
 
 
     pygame.display.flip()
     clock.tick(60)
-print(points)
 pygame.quit()
