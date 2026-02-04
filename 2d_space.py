@@ -63,62 +63,38 @@ for i in range(-20, 21):
     points['square']['z4' + str(i)] = [ 100,-100, i * 5]
 
 def print_point(_object,_point, choose_color):
-    mult = ((points[_object.name][_point][2] - _object.offset[2] + 100) / 200) + 2
-    if 55 <= (points[_object.name][_point][2] + 100) + 55 <= 255:
-        _color = (points[_object.name][_point][2] + 100) + 55
-        _size = (points[_object.name][_point][2] + 100) / 20 + 5
-    elif 55 > (points[_object.name][_point][2] + 100) + 55:
+    mult = ((points[_object.name][_point][2] -  _object.offset[2] + 100) / 200) + 2
+    if 55 <= (points[_object.name][_point][2]  + 100) + 55 <= 255:
+        _color = (points[_object.name][_point][2]  + 100) + 55
+        _size = (points[_object.name][_point][2]  + 100) / 20 + 5
+    elif 55 > (points[_object.name][_point][2]  + 100) + 55:
         _color = 55
         _size = 5
     else:
         _color = 255
         _size = 15
-    #pygame.draw.rect(screen, (0, _color, choose_color),
-                    #(center[0] + (_object.offset[0] + points[_object.name][_point][0]) * mult,
-                          #center[1] - (_object.offset[1] + points[_object.name][_point][1]) * mult, _size, _size))
     pygame.draw.rect(screen, (0, _color, choose_color),
-                     (center[0] + (_object.offset[0] + camera.point_dict[_object.name][_point][0]) * mult,
-                      center[1] - (_object.offset[1] + camera.point_dict[_object.name][_point][1]) * mult, _size, _size))
+                    (center[0] + (_object.offset[0] + points[_object.name][_point][0]) * mult,
+                          center[1] - (_object.offset[1] + points[_object.name][_point][1]) * mult, _size, _size))
 
 
 class CameraChanger:
     def __init__(self):
         # creating empty dict
-        self.point_dict = {}
-        for __object in all_objects:
-            self.point_dict[__object.name] = {}
-            for dot_name in __object.point_dict:
-                self.point_dict[__object.name][dot_name] = __object.point_dict[dot_name]
+        self.rotation = [0,0,0]
 
-
-    def __get_angle(self,_object, _point, index):
-        radius = math.hypot(self.point_dict[_object][_point][index[0]], self.point_dict[_object][_point][index[1]])
-        if radius == 0:
-            return 0
-        side = self.point_dict[_object][_point][index[1]]
-        result = math.degrees(math.acos(side / radius))
-        if self.point_dict[_object][_point][index[0]] < 0:
-            result = 360 - result
-        return result
-
-    def rotate(self,_object, _point, index, add_ang=0):
-        angle = self.__get_angle(_object,_point, index) - add_ang
-        radius = math.hypot(self.point_dict[_object][_point][index[0]], self.point_dict[_object][_point][index[1]])
-        radius * math.cos(math.radians(angle))
-        self.point_dict[_object][_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
-        self.point_dict[_object][_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
-
-    def update(self,_point):
-        pass
-
+    def rotate(self,index, add_ang):
+        for num in [0,1,2]:
+            if num not in index:
+                self.rotation[index[num]] += add_ang
+                continue
 
 class CordChanger:
-    def __init__(self, input_points):
-        self.point_dict = points[input_points]
-        self.name = input_points
+    def __init__(self, obj_name):
+        self.point_dict = points[obj_name]
+        self.name = obj_name
         self.offset = [0,0,0]
-        self.rotation = [0.0, 0.0, 0.0]
-
+        self.rotation = [0, 0, 0]
 
     def __get_angle(self,_point, index):
         radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
@@ -179,9 +155,7 @@ while running:
 
 
     if keys[pygame.K_h]:
-        for _object in camera.point_dict:
-            for point in camera.point_dict[_object]:
-                camera.rotate(_object, point, (1, 2), 1)
+        camera.rotate( (1, 2), 1)
 
 
     if keys[pygame.K_LSHIFT]:
@@ -256,12 +230,14 @@ while running:
     for point in points['square']:
         print_point(square, point, 0)
     font = pygame.font.Font(None, 40)
-    output = f"""
+    output = \
+    f"""
         Object : {active_object.name}
         Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°
         Coordinates : x {active_object.offset[0]:.2f} y {active_object.offset[1]:.2f} z {-active_object.offset[2]:.2f}
         
         {points['square']['1']}
+        {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}° z {camera.rotation[2]:.0f}
     """
     text = font.render(output, True, (255, 255, 255))
     screen.blit(text, (0, 0))
