@@ -3,6 +3,8 @@ import math
 
 center = (1190, 540)
 all_objects = []
+all_cameras = []
+object_order = []
 
 pygame.init()
 screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
@@ -38,8 +40,16 @@ points = { #(x,y,z)
         '6' : [ 100.0,  33.0,  33.0],
         '7' : [  33.0,  33.0,  33.0],
         '8' : [  33.0, 100.0,  33.0],
-
-
+    },
+    'block2' : {
+        '1' : [ -100.0, -100.0, -100,0],
+        '2' : [ -100.0,  -33.0, -100.0],
+        '3' : [  -33.0,  -33.0, -100.0],
+        '4' : [  -33.0, -100.0, -100.0],
+        '5' : [ -100.0, -100.0,  -33,0],
+        '6' : [ -100.0,  -33.0,  -33.0],
+        '7' : [  -33.0,  -33.0,  -33.0],
+        '8' : [  -33.0, -100.0,  -33.0],
     }
 }
 
@@ -94,6 +104,7 @@ def render_polygon(_object, choose_color):
     polygons = {}
     order = []
     inserted = False
+    polygon_depth = 0
     for polygon in _object.polygons:
         polygons[polygon] = {}
         polygons[polygon]['render_points'] = []
@@ -115,6 +126,8 @@ def render_polygon(_object, choose_color):
                                     center[1] - (camera.output[_object.name][_point][1]) * mult))
             depth = camera.output[_object.name][_point][2]
             polygons[polygon]['depth_ev'] += depth
+            polygon_depth += depth
+
         if not order:
             order.append((polygon, polygons[polygon]['depth_ev'] / 4))
         else:
@@ -125,14 +138,16 @@ def render_polygon(_object, choose_color):
                     break
             if not inserted:
                 order.append((polygon,polygons[polygon]['depth_ev'] / 4))
+
     for _polygon,_depth in order[::-1]:
         pygame.draw.polygon(screen, (choose_color, 128, polygons[_polygon]['color_ev'] / 4), polygons[_polygon]['render_points'])
-        pygame.draw.polygon(screen, (255, 255, 255) , polygons[_polygon]['render_points'],2)
+        pygame.draw.polygon(screen, (0, 0, 0) , polygons[_polygon]['render_points'],4)
     print(order)
 
 class CameraChanger:
     def __init__(self,name):
         self.name = name
+        all_cameras.append(self)
         self.rotation = [0,0,0]
         self.pos = [0,0,0]
         self.output = {}
@@ -189,6 +204,7 @@ class ObjectChanger:
         self.rotation = [0, 0, 0]
         self.size = 1
         self.polygons = polygons
+        all_objects.append(self)
 
     def rotate(self,_point, index, add_ang):
         def __get_angle(_point, _index, _radius):
@@ -219,13 +235,15 @@ plane = ObjectChanger('plane')
 block1 = ObjectChanger('block1',(
     ('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6'),
 ))
-all_objects = [square,plane,block1]
-active_object = all_objects[0]
+block2 = ObjectChanger('block2',(
+    ('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6'),
+))
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
-all_cameras = [camera1,camera2]
-camera = all_cameras[0]
 
+
+active_object = all_objects[0]
+camera = all_cameras[0]
 
 running = True
 while running:
@@ -327,6 +345,7 @@ while running:
     render_object(plane, 255)
     render_object(square, 0)
     render_polygon(block1, 128)
+    render_polygon(block2, 255)
 
     # in-game info output
     font = pygame.font.Font(None, 40)
