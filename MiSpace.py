@@ -5,7 +5,6 @@ center = (1190, 540)
 all_objects = []
 
 pygame.init()
-screen = pygame.display.set_mode((1980, 1080))
 screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
 background_color = (0, 5, 0)
@@ -31,8 +30,8 @@ points = { #(x,y,z)
         'center' : [0,      0,      0],
     },
     'block1' : {
-        '2' : [ 100.0, 100.0, 100,0],
-        '1' : [ 100.0,  33.0, 100.0],
+        '1' : [ 100.0, 100.0, 100,0],
+        '2' : [ 100.0,  33.0, 100.0],
         '3' : [  33.0,  33.0, 100.0],
         '4' : [  33.0, 100.0, 100.0],
         '5' : [ 100.0, 100.0,  33,0],
@@ -74,7 +73,7 @@ for i in range(-20, 21):
     points['square']['z3' + str(i)] = [-100,-100, i * 5]
     points['square']['z4' + str(i)] = [ 100,-100, i * 5]
 
-def render_object(_object, choose_color, polygon=False):
+def render_object(_object, choose_color):
     for _point in points[_object.name]:
         # z cord (depth calculation)
         mult = (((camera.output[_object.name][_point][2] + 125) / 375) + 2)
@@ -87,13 +86,49 @@ def render_object(_object, choose_color, polygon=False):
         else:
             _color = 255 ; _size = 15
         # x and y cord output
-        if not polygon:
-            pygame.draw.rect(screen, (0, _color, choose_color),
-                             (center[0] + (camera.output[_object.name][_point][0]) * mult,
-                              center[1] - (camera.output[_object.name][_point][1]) * mult, _size, _size))
-        else:
-            pass
+        pygame.draw.rect(screen, (0, _color, choose_color),
+                        (center[0] + (camera.output[_object.name][_point][0]) * mult,
+                        center[1] - (camera.output[_object.name][_point][1]) * mult, _size, _size))
 
+def render_polygon(_object, choose_color):
+    polygons = {}
+    order = []
+    inserted = False
+    for polygon in _object.polygons:
+        polygons[polygon] = {}
+        polygons[polygon]['render_points'] = []
+        polygons[polygon]['color_ev'] = 0
+        polygons[polygon]['depth_ev'] = 0
+        for _point in polygon:
+            # z cord (depth calculation)
+            mult = round((((camera.output[_object.name][_point][2] + 125) / 375) + 2),2)
+            # changing color and size depending on depth
+            if 55 <= (camera.output[_object.name][_point][2] + 100) + 55 <= 255:
+                _color = (camera.output[_object.name][_point][2] + 100) + 55
+                _size = (camera.output[_object.name][_point][2] + 100) / 20 + 5
+            elif 55 > (camera.output[_object.name][_point][2] + 100) + 55:
+                _color = 55 ; _size = 5
+            else:
+                _color = 255 ; _size = 15
+            polygons[polygon]['color_ev'] += _color
+            polygons[polygon]['render_points'].append((center[0] + (camera.output[_object.name][_point][0]) * mult,
+                                    center[1] - (camera.output[_object.name][_point][1]) * mult))
+            depth = camera.output[_object.name][_point][2]
+            polygons[polygon]['depth_ev'] += depth
+        if not order:
+            order.append((polygon, polygons[polygon]['depth_ev'] / 4))
+        else:
+            for num in range(len(order)):
+                if polygons[polygon]['depth_ev'] / 4 > order[num][1]:
+                    order.insert(num, (polygon, polygons[polygon]['depth_ev'] / 4))
+                    inserted = True
+                    break
+            if not inserted:
+                order.append((polygon,polygons[polygon]['depth_ev'] / 4))
+    for _polygon,_depth in order[::-1]:
+        pygame.draw.polygon(screen, (choose_color, 128, polygons[_polygon]['color_ev'] / 4), polygons[_polygon]['render_points'])
+        pygame.draw.polygon(screen, (255, 255, 255) , polygons[_polygon]['render_points'],2)
+    print(order)
 
 class CameraChanger:
     def __init__(self,name):
@@ -147,12 +182,13 @@ class CameraChanger:
                 self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
 
 class ObjectChanger:
-    def __init__(self, obj_name):
+    def __init__(self, obj_name,polygons=None):
         self.point_dict = points[obj_name]
         self.name = obj_name
         self.pos = [0,0,0]
         self.rotation = [0, 0, 0]
         self.size = 1
+        self.polygons = polygons
 
     def rotate(self,_point, index, add_ang):
         def __get_angle(_point, _index, _radius):
@@ -180,7 +216,9 @@ class ObjectChanger:
 # objects
 square = ObjectChanger('square')
 plane = ObjectChanger('plane')
-block1 = ObjectChanger('block1')
+block1 = ObjectChanger('block1',(
+    ('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6'),
+))
 all_objects = [square,plane,block1]
 active_object = all_objects[0]
 camera1 = CameraChanger('Camera 1')
@@ -288,7 +326,7 @@ while running:
 
     render_object(plane, 255)
     render_object(square, 0)
-    render_object(block1, 128,True)
+    render_polygon(block1, 128)
 
     # in-game info output
     font = pygame.font.Font(None, 40)
