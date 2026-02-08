@@ -31,26 +31,6 @@ points = { #(x,y,z)
         '4' : [-200.0, -100.0, -200.0],
         'center' : [0,      0,      0],
     },
-    'block1' : {
-        '1' : [ 100.0, 100.0, 100,0],
-        '2' : [ 100.0,  33.0, 100.0],
-        '3' : [  33.0,  33.0, 100.0],
-        '4' : [  33.0, 100.0, 100.0],
-        '5' : [ 100.0, 100.0,  33,0],
-        '6' : [ 100.0,  33.0,  33.0],
-        '7' : [  33.0,  33.0,  33.0],
-        '8' : [  33.0, 100.0,  33.0],
-    },
-    'block2' : {
-        '1' : [ -100.0, -100.0, -100,0],
-        '2' : [ -100.0,  -33.0, -100.0],
-        '3' : [  -33.0,  -33.0, -100.0],
-        '4' : [  -33.0, -100.0, -100.0],
-        '5' : [ -100.0, -100.0,  -33,0],
-        '6' : [ -100.0,  -33.0,  -33.0],
-        '7' : [  -33.0,  -33.0,  -33.0],
-        '8' : [  -33.0, -100.0,  -33.0],
-    }
 }
 
 for i in range(-20, 21):
@@ -100,37 +80,26 @@ def render_object(_object, choose_color):
                         (center[0] + (camera.output[_object.name][_point][0]) * mult,
                         center[1] - (camera.output[_object.name][_point][1]) * mult, _size, _size))
 
-def render_polygon(_object, choose_color):
+def calculate_polygon(_object):
     polygons = {}
     order = []
-    inserted = False
     polygon_depth = 0
     for polygon in _object.polygons:
         polygons[polygon] = {}
         polygons[polygon]['render_points'] = []
-        polygons[polygon]['color_ev'] = 0
         polygons[polygon]['depth_ev'] = 0
         for _point in polygon:
             # z cord (depth calculation)
             mult = round((((camera.output[_object.name][_point][2] + 125) / 375) + 2),2)
-            # changing color and size depending on depth
-            if 55 <= (camera.output[_object.name][_point][2] + 100) + 55 <= 255:
-                _color = (camera.output[_object.name][_point][2] + 100) + 55
-                _size = (camera.output[_object.name][_point][2] + 100) / 20 + 5
-            elif 55 > (camera.output[_object.name][_point][2] + 100) + 55:
-                _color = 55 ; _size = 5
-            else:
-                _color = 255 ; _size = 15
-            polygons[polygon]['color_ev'] += _color
             polygons[polygon]['render_points'].append((center[0] + (camera.output[_object.name][_point][0]) * mult,
                                     center[1] - (camera.output[_object.name][_point][1]) * mult))
             depth = camera.output[_object.name][_point][2]
             polygons[polygon]['depth_ev'] += depth
             polygon_depth += depth
-
         if not order:
             order.append((polygon, polygons[polygon]['depth_ev'] / 4))
         else:
+            inserted = False
             for num in range(len(order)):
                 if polygons[polygon]['depth_ev'] / 4 > order[num][1]:
                     order.insert(num, (polygon, polygons[polygon]['depth_ev'] / 4))
@@ -138,17 +107,27 @@ def render_polygon(_object, choose_color):
                     break
             if not inserted:
                 order.append((polygon,polygons[polygon]['depth_ev'] / 4))
-
-    for _polygon,_depth in order[::-1]:
-        pygame.draw.polygon(screen, (choose_color, 128, polygons[_polygon]['color_ev'] / 4), polygons[_polygon]['render_points'])
-        pygame.draw.polygon(screen, (0, 0, 0) , polygons[_polygon]['render_points'],4)
-    print(order)
+    if not object_order:
+        object_order.append((_object, polygon_depth, order[::-1].copy(),polygons.copy()))
+    else:
+        inserted = False
+        for num in range(len(object_order)):
+            if polygon_depth > object_order[num][1]:
+                object_order.insert(num,(_object, polygon_depth, order[::-1].copy(),polygons.copy()))
+                inserted = True
+                break
+        if not inserted:
+            object_order.append((_object, polygon_depth, order[::-1].copy(),polygons.copy()))
+def render_polygon(object_info):
+    for _polygon,_depth in object_info[2]:
+        pygame.draw.polygon(screen, (255, 128, 128), object_info[3][_polygon]['render_points'])
+        pygame.draw.polygon(screen, (0, 0, 0) , object_info[3][_polygon]['render_points'],4)
 
 class CameraChanger:
     def __init__(self,name):
-        self.name = name
         all_cameras.append(self)
-        self.rotation = [0,0,0]
+        self.name = name
+        self.rotation = [0,0]
         self.pos = [0,0,0]
         self.output = {}
         for obj in points:
@@ -197,14 +176,17 @@ class CameraChanger:
                 self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
 
 class ObjectChanger:
-    def __init__(self, obj_name,polygons=None):
+    def __init__(self, obj_name,polygons=None,_points=None):
+        all_objects.append(self)
+        if _points:
+            points[obj_name] = _points
+        print(_points)
         self.point_dict = points[obj_name]
         self.name = obj_name
         self.pos = [0,0,0]
         self.rotation = [0, 0, 0]
         self.size = 1
         self.polygons = polygons
-        all_objects.append(self)
 
     def rotate(self,_point, index, add_ang):
         def __get_angle(_point, _index, _radius):
@@ -232,12 +214,26 @@ class ObjectChanger:
 # objects
 square = ObjectChanger('square')
 plane = ObjectChanger('plane')
-block1 = ObjectChanger('block1',(
-    ('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6'),
-))
-block2 = ObjectChanger('block2',(
-    ('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6'),
-))
+block1 = ObjectChanger('block1',
+        (('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6')),
+    {'1' : [ 100.0, 100.0, 100,0],
+            '2' : [ 100.0,  33.0, 100.0],
+            '3' : [  33.0,  33.0, 100.0],
+            '4' : [  33.0, 100.0, 100.0],
+            '5' : [ 100.0, 100.0,  33,0],
+            '6' : [ 100.0,  33.0,  33.0],
+            '7' : [  33.0,  33.0,  33.0],
+            '8' : [  33.0, 100.0,  33.0],})
+block2 = ObjectChanger('block2',
+        (('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6')),
+    {'1' : [ -100.0, -100.0, -100,0],
+            '2' : [ -100.0,  -33.0, -100.0],
+            '3' : [  -33.0,  -33.0, -100.0],
+            '4' : [  -33.0, -100.0, -100.0],
+            '5' : [ -100.0, -100.0,  -33,0],
+            '6' : [ -100.0,  -33.0,  -33.0],
+            '7' : [  -33.0,  -33.0,  -33.0],
+            '8' : [  -33.0, -100.0,  -33.0]})
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
 
@@ -341,30 +337,33 @@ while running:
     """ OUTPUT """
     screen.fill(background_color)
     pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
-
     render_object(plane, 255)
     render_object(square, 0)
-    render_polygon(block1, 128)
-    render_polygon(block2, 255)
+    for _object in all_objects:
+        if _object.polygons:
+            calculate_polygon(_object)
+    for _object in object_order[::-1]:
+        render_polygon(_object)
+    print(object_order)
+    object_order = []
 
     # in-game info output
     font = pygame.font.Font(None, 40)
-    message = \
-    f"""
-        Objects : {[i.name + f" ({num})" for num, i in enumerate(all_objects,1)]}
-        Object : {active_object.name}
-        Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°
-        # Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}
-        Size : {active_object.size:.2f}
-        
-        Cameras : {[i.name + f" ({num})" for num, i in enumerate(all_cameras,8)]}
-        Camera : {camera.name}
-        Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°
-        # Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}
-        # Size : {active_object.size:.2f}        
-    """
-    text = font.render(message, True, (255, 255, 255))
-    screen.blit(text, (0, 0))
+    messages = [
+    f'Objects : {[i.name + f" ({num})" for num, i in enumerate(all_objects, 1)]}',
+    f'Object : {active_object.name}',
+    f'Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°',
+    f'# Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
+    f'Size : {active_object.size:.2f}',
+    f' ',
+    f'Cameras : {[i.name + f" ({num})" for num, i in enumerate(all_cameras,8)]}',
+    f'Camera : {camera.name}',
+    f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
+    f'# Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
+    f'# Size : {active_object.size:.2f}']
+    for num, message in enumerate(messages):
+        text = font.render(message, True, (255, 255, 255))
+        screen.blit(text, (5, 5 + num * 35))
 
     pygame.display.flip()
     clock.tick(60)
