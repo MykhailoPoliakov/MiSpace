@@ -2,6 +2,7 @@ import pygame
 import math
 
 center = (1190, 540)
+var = {'active' : True, 'analytic' : True}
 all_objects = []
 all_cameras = []
 object_order = []
@@ -63,6 +64,9 @@ for i in range(-20, 21):
     points['square']['z3' + str(i)] = [-100,-100, i * 5]
     points['square']['z4' + str(i)] = [ 100,-100, i * 5]
 
+def angle_calc(_radius, _cord_0, _cord_1):
+    _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
+    return 360 - _angle if _cord_0 < 0 else _angle
 
 def render_object(_object, choose_color):
     for _point in points[_object.name]:
@@ -82,6 +86,7 @@ def render_object(_object, choose_color):
                         center[1] - (camera.output[_object.name][_point][1]) * mult, _size, _size))
 
 def calculate_polygon(_object):
+
     def calculate_color(_depth, _colors):
         f_colors = []
         if _depth > 100:
@@ -91,6 +96,7 @@ def calculate_polygon(_object):
         for _color in _colors:
             f_colors.append(int(_color / (1 + ((_depth - 100) / -40))))
         return f_colors
+
     def sort(_order, condition, content):
         if _order:
             for num in range(len(_order)):
@@ -99,6 +105,7 @@ def calculate_polygon(_object):
                     return
         _order.append(content)
         return
+
     polygons = {}
     order = []
     polygon_depth = 0
@@ -138,19 +145,13 @@ class CameraChanger:
 
     def rotate(self,index, add_ang):
         self.rotation[index] += add_ang
+        var['active'] = True
 
     def resize(self,add_size):
         self.size *= 1 + add_size / 100
+        var['active'] = True
 
     def render(self):
-        def angle_calc(_radius, _cord_0, _cord_1):
-            if _radius != 0:
-                _side = _cord_1
-                _angle = math.degrees(math.acos(_side / _radius))
-                if _cord_0 < 0:
-                    return 360 - _angle
-                return _angle
-            return 0
         for _obj in all_objects:
             for _point in points[_obj.name]:
                 # camera y rotation offset
@@ -183,35 +184,25 @@ class ObjectChanger:
         self.size = 1
         self.polygons = polygons
 
-    def rotate(self,_point, index, add_ang):
-        def __get_angle(_point, _index, _radius):
-            if radius == 0:
-                return 0
-            side = self.point_dict[_point][_index[1]]
-            result = math.degrees(math.acos(side / _radius))
-            if self.point_dict[_point][_index[0]] < 0:
-                result = 360 - result
-            return result
-        radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
-        angle = __get_angle(_point, index,radius) - add_ang
-        self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
-        self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
+    def rotate(self,index, add_ang):
+        for _point in points[active_object.name]:
+            radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
+            angle = angle_calc(radius, self.point_dict[_point][index[0]], self.point_dict[_point][index[1]]) - add_ang
+            self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
+            self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
+        self.rotation[1] += 1
+        var['active'] = True
 
     def move(self, index, add_move):
         self.pos[index] += add_move
+        var['active'] = True
 
     def resize(self,add_size):
         for _point in self.point_dict:
             for index in [0,1,2]:
                 self.point_dict[_point][index] *= round(1 + add_size / 100,2)
-        active_object.size *= 1 + add_size / 100
-
-# pygame initialization
-pygame.init()
-screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
-clock = pygame.time.Clock()
-background_color = (0, 5, 0)
-screen.fill(background_color)
+        self.size *= 1 + add_size / 100
+        var['active'] = True
 
 # objects
 square = ObjectChanger('square')
@@ -246,17 +237,39 @@ camera2 = CameraChanger('Camera 2')
 active_object = all_objects[0]
 camera = all_cameras[0]
 
+# pygame initialization
+pygame.init()
+screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
+clock = pygame.time.Clock()
+background_color = (0, 5, 0)
+screen.fill(background_color)
+
+# main cycle
 running = True
 while running:
     """ BRAIN """
-    pass
+    # objects output calculation
+    if var['active']:
+        var['active'] = False
+        camera.render()
+        object_order = []
+        for _object in all_objects:
+            if _object.polygons:
+                calculate_polygon(_object)
+
     """ INPUT """
     for event in pygame.event.get():
         # ways to exit
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
+
+        # analytic mode
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
+            var['analytic'] = True if var['analytic'] == False else False
+            center = (1190, 540) if center == (990, 540) else (990, 540)
+            var['active'] = True
 
         # choosing the object
         if event.type == pygame.KEYDOWN and event.key == pygame.K_1 and len(all_objects) > 0:
@@ -267,29 +280,34 @@ while running:
             active_object = all_objects[2]
         if event.type == pygame.KEYDOWN and event.key == pygame.K_4 and len(all_objects) > 3:
             active_object = all_objects[3]
-        # testing
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_9:
-            camera = camera2
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_8:
-            camera = camera1
+
+        #object change
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+            _index = all_objects.index(active_object)
+            active_object = all_objects[_index + 1] if _index < len(all_objects) - 1 else all_objects[0]
+            var['active'] = True
+        # camera change
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_k:
+            _index = all_cameras.index(camera)
+            camera = all_cameras[_index + 1] if _index < len(all_cameras) - 1 else all_cameras[0]
+            var['active'] = True
 
     # rotation,movement and sizing
     keys = pygame.key.get_pressed()
-    camera.render()
 
     # object movement
     if keys[pygame.K_g]:
-        if   keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
+        if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
             active_object.move(0,2)
         elif keys[pygame.K_LEFT]  and not keys[pygame.K_RIGHT]:
             active_object.move(0, -2)
-        if   keys[pygame.K_UP]    and not keys[pygame.K_DOWN]:
+        if keys[pygame.K_RALT]    and not keys[pygame.K_DOWN]:
             active_object.move(1,2)
-        elif keys[pygame.K_DOWN]  and not keys[pygame.K_UP]:
+        elif keys[pygame.K_RCTRL]  and not keys[pygame.K_UP]:
             active_object.move(1,-2)
-        if   keys[pygame.K_RALT]  and not keys[pygame.K_RCTRL]:
+        if keys[pygame.K_DOWN]  and not keys[pygame.K_RCTRL]:
             active_object.move(2, 2)
-        elif keys[pygame.K_RCTRL] and not keys[pygame.K_RALT]:
+        elif keys[pygame.K_UP] and not keys[pygame.K_RALT]:
             active_object.move(2, -2)
 
     # object size
@@ -302,29 +320,17 @@ while running:
     # object rotation
     elif keys[pygame.K_r]:
         if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
-            for point in points[active_object.name]:
-                active_object.rotate(point, (0,2),1)
-            active_object.rotation[1] += 1
+            active_object.rotate((0, 2), 1)
         elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
-            for point in points[active_object.name]:
-                active_object.rotate(point,(0,2), -1)
-            active_object.rotation[1] -= 1
+            active_object.rotate((0, 2),-1)
         if keys[pygame.K_UP] and not keys[pygame.K_DOWN]:
-            for point in points[active_object.name]:
-                active_object.rotate(point, (1,2),-1)
-            active_object.rotation[0] -= 1
+            active_object.rotate((1, 2), 1)
         elif keys[pygame.K_DOWN] and not keys[pygame.K_UP]:
-            for point in points[active_object.name]:
-                active_object.rotate(point,(1,2), 1)
-            active_object.rotation[0] += 1
+            active_object.rotate((1, 2),-1)
         if keys[pygame.K_RALT] and not keys[pygame.K_RCTRL]:
-            for point in points[active_object.name]:
-                active_object.rotate(point, (0,1),1)
-            active_object.rotation[2] += 1
+            active_object.rotate((0, 1), 1)
         elif keys[pygame.K_RCTRL] and not keys[pygame.K_RALT]:
-            for point in points[active_object.name]:
-                active_object.rotate(point,(0,1),-1)
-            active_object.rotation[2] -= 1
+            active_object.rotate((0, 1),-1)
 
     # camera
     else:
@@ -350,35 +356,35 @@ while running:
     screen.fill(background_color)
     pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
 
-    # objects output
+    # objects output render
     render_object(plane, 255)
     render_object(square, 0)
-    for _object in all_objects:
-        if _object.polygons:
-            calculate_polygon(_object)
     for _object in object_order[::-1]:
         render_polygon(_object)
-    object_order = []
 
     # in-game info output
-    font = pygame.font.Font(None, 40)
-    messages = [
+    if var['analytic']:
+        fps = int(clock.get_fps())
+        font = pygame.font.Font(None, 40)
+        messages = [
 
-    f'Objects : {[i.name + f" ({num})" for num, i in enumerate(all_objects, 1)]}',
-    f'Object : {active_object.name}',
-    f'Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°',
-    f'# Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
-    f'Size : {active_object.size:.2f}',
-    f' ',
-    f'Cameras : {[i.name + f" ({num})" for num, i in enumerate(all_cameras,8)]}',
-    f'Camera : {camera.name}',
-    f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
-    f'# Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
-    f'# Size : {active_object.size:.2f}']
-
-    for num, message in enumerate(messages):
-        text = font.render(message, True, (255, 255, 255))
-        screen.blit(text, (5, 5 + num * 35))
+        f'Fps : {fps}',
+        f'' ,
+        f'Objects : {[i.name for i in all_objects]}',
+        f'Object : {active_object.name}',
+        f'Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°',
+        f'Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
+        f'Size : {active_object.size:.2f}',
+        f'',
+        f'Cameras : {[i.name for i in all_cameras]}',
+        f'Camera : {camera.name}',
+        f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
+        f'Size : {camera.size:.2f}',
+        f'',
+        f'State : {'active' if var['active'] else 'passive'}']
+        for num, message in enumerate(messages):
+            text = font.render(message, True, (255, 255, 255))
+            screen.blit(text, (15, 5 + num * 35))
 
     pygame.display.flip()
     clock.tick(60)
