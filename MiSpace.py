@@ -5,6 +5,15 @@ center = (1190, 540)
 all_objects = []
 all_cameras = []
 object_order = []
+colors = {
+    'red'   : (255,   0,   0),
+    'green' : (  0, 255,   0),
+    'blue'  : (  0,   0, 255),
+    'yellow': (255, 255,   0),
+    'orange': (255, 165,   0),
+    'white' : (255, 255, 255),
+    'gray'  : (127, 127, 127),
+}
 
 pygame.init()
 screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
@@ -29,7 +38,6 @@ points = { #(x,y,z)
         '2' : [-200.0, -100.0,  200.0],
         '3' : [ 200.0, -100.0, -200.0],
         '4' : [-200.0, -100.0, -200.0],
-        'center' : [0,      0,      0],
     },
 }
 
@@ -81,46 +89,46 @@ def render_object(_object, choose_color):
                         center[1] - (camera.output[_object.name][_point][1]) * mult, _size, _size))
 
 def calculate_polygon(_object):
+    def calculate_color(_depth, _colors):
+        f_colors = []
+        if _depth > 100:
+            return _colors
+        elif _depth < -100:
+            return (_colors[1] / 1.5, _colors[1] / 1.5, _colors[2] / 1.5),
+        for _color in _colors:
+            f_colors.append(int(_color / (1 + ((_depth - 100) / -40))))
+        return f_colors
+    def sort(_order, condition, content):
+        if _order:
+            for num in range(len(_order)):
+                if condition > _order[num][1]:
+                    _order.insert(num, content)
+                    return
+        _order.append(content)
+        return
     polygons = {}
     order = []
     polygon_depth = 0
-    for polygon in _object.polygons:
-        polygons[polygon] = {}
-        polygons[polygon]['render_points'] = []
-        polygons[polygon]['depth_ev'] = 0
+    for polygon, color in _object.polygons:
+        polygons[polygon] = {'render_points' : [], 'depth_ev' : 0}
         for _point in polygon:
             # z cord (depth calculation)
             mult = round((((camera.output[_object.name][_point][2] + 125) / 375) + 2),2)
-            polygons[polygon]['render_points'].append((center[0] + (camera.output[_object.name][_point][0]) * mult,
-                                    center[1] - (camera.output[_object.name][_point][1]) * mult))
-            depth = camera.output[_object.name][_point][2]
+            polygons[polygon]['render_points'].append((round(center[0] + (camera.output[_object.name][_point][0]) * mult,2),
+                                    round(center[1] - (camera.output[_object.name][_point][1]) * mult,2)))
+            depth = int(camera.output[_object.name][_point][2])
             polygons[polygon]['depth_ev'] += depth
             polygon_depth += depth
-        if not order:
-            order.append((polygon, polygons[polygon]['depth_ev'] / 4))
-        else:
-            inserted = False
-            for num in range(len(order)):
-                if polygons[polygon]['depth_ev'] / 4 > order[num][1]:
-                    order.insert(num, (polygon, polygons[polygon]['depth_ev'] / 4))
-                    inserted = True
-                    break
-            if not inserted:
-                order.append((polygon,polygons[polygon]['depth_ev'] / 4))
-    if not object_order:
-        object_order.append((_object, polygon_depth, order[::-1].copy(),polygons.copy()))
-    else:
-        inserted = False
-        for num in range(len(object_order)):
-            if polygon_depth > object_order[num][1]:
-                object_order.insert(num,(_object, polygon_depth, order[::-1].copy(),polygons.copy()))
-                inserted = True
-                break
-        if not inserted:
-            object_order.append((_object, polygon_depth, order[::-1].copy(),polygons.copy()))
+        # color of the polygon calculation
+        final_color = calculate_color(polygons[polygon]['depth_ev'] / 4, color)
+        # in "order" sorting all polygons of an object
+        sort(order, polygons[polygon]['depth_ev'], (polygon, polygons[polygon]['depth_ev'],tuple(final_color)))
+    # in "object_order" sorting object itself
+    sort(object_order, polygon_depth , (_object, polygon_depth, order[::-1],polygons))
+
 def render_polygon(object_info):
-    for _polygon,_depth in object_info[2]:
-        pygame.draw.polygon(screen, (255, 128, 128), object_info[3][_polygon]['render_points'])
+    for _polygon, _depth, _color in object_info[2]:
+        pygame.draw.polygon(screen, _color, object_info[3][_polygon]['render_points'])
         pygame.draw.polygon(screen, (0, 0, 0) , object_info[3][_polygon]['render_points'],4)
 
 class CameraChanger:
@@ -180,7 +188,6 @@ class ObjectChanger:
         all_objects.append(self)
         if _points:
             points[obj_name] = _points
-        print(_points)
         self.point_dict = points[obj_name]
         self.name = obj_name
         self.pos = [0,0,0]
@@ -214,8 +221,10 @@ class ObjectChanger:
 # objects
 square = ObjectChanger('square')
 plane = ObjectChanger('plane')
-block1 = ObjectChanger('block1',
-        (('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6')),
+block1 = ObjectChanger('block1', (
+     (('1','2','3','4'),colors['red'])  ,(('5','6','7','8'),colors['gray']) ,
+     (('3','4','8','7'),colors['gray']) ,(('1','2','6','5'),colors['blue']) ,
+     (('1','4','8','5'),colors['white']),(('2','3','7','6'),colors['gray'])),
     {'1' : [ 100.0, 100.0, 100,0],
             '2' : [ 100.0,  33.0, 100.0],
             '3' : [  33.0,  33.0, 100.0],
@@ -223,17 +232,19 @@ block1 = ObjectChanger('block1',
             '5' : [ 100.0, 100.0,  33,0],
             '6' : [ 100.0,  33.0,  33.0],
             '7' : [  33.0,  33.0,  33.0],
-            '8' : [  33.0, 100.0,  33.0],})
-block2 = ObjectChanger('block2',
-        (('1','2','3','4'),('5','6','7','8'),('3','4','8','7'),('1','2','6','5'),('1','4','8','5'),('2','3','7','6')),
-    {'1' : [ -100.0, -100.0, -100,0],
-            '2' : [ -100.0,  -33.0, -100.0],
-            '3' : [  -33.0,  -33.0, -100.0],
-            '4' : [  -33.0, -100.0, -100.0],
-            '5' : [ -100.0, -100.0,  -33,0],
-            '6' : [ -100.0,  -33.0,  -33.0],
-            '7' : [  -33.0,  -33.0,  -33.0],
-            '8' : [  -33.0, -100.0,  -33.0]})
+            '8' : [  33.0, 100.0,  33.0]})
+block2 = ObjectChanger('block2', (
+    (('1', '2', '3', '4'), colors['orange']), (('5', '6', '7', '8'), colors['gray']) ,
+    (('3', '4', '8', '7'), colors['gray'])  , (('1', '2', '6', '5'), colors['green']),
+    (('1', '4', '8', '5'), colors['yellow']), (('2', '3', '7', '6'), colors['gray'])),
+    {'1' : [-100.0,-100.0,-100,0],
+            '2' : [-100.0, -33.0,-100.0],
+            '3' : [ -33.0, -33.0,-100.0],
+            '4' : [ -33.0,-100.0,-100.0],
+            '5' : [-100.0,-100.0, -33,0],
+            '6' : [-100.0, -33.0, -33.0],
+            '7' : [ -33.0, -33.0, -33.0],
+            '8' : [ -33.0,-100.0, -33.0]})
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
 
@@ -344,7 +355,6 @@ while running:
             calculate_polygon(_object)
     for _object in object_order[::-1]:
         render_polygon(_object)
-    print(object_order)
     object_order = []
 
     # in-game info output
