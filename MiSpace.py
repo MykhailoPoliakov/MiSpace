@@ -14,13 +14,6 @@ colors = {
     'white' : (255, 255, 255),
     'gray'  : (127, 127, 127),
 }
-
-pygame.init()
-screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
-clock = pygame.time.Clock()
-background_color = (0, 5, 0)
-screen.fill(background_color)
-
 points = { #(x,y,z)
     'square' : {
         '1' : [-100.0,  100.0,  100.0],
@@ -40,7 +33,6 @@ points = { #(x,y,z)
         '4' : [-200.0, -100.0, -200.0],
     },
 }
-
 for i in range(-20, 21):
     points['plane']['x1' + str(i)] = [ i * 15,-100, 300]
     points['plane']['x2' + str(i)] = [ i * 15,-100,-300]
@@ -70,6 +62,7 @@ for i in range(-20, 21):
     points['square']['z2' + str(i)] = [-100, 100, i * 5]
     points['square']['z3' + str(i)] = [-100,-100, i * 5]
     points['square']['z4' + str(i)] = [ 100,-100, i * 5]
+
 
 def render_object(_object, choose_color):
     for _point in points[_object.name]:
@@ -136,8 +129,8 @@ class CameraChanger:
         all_cameras.append(self)
         self.name = name
         self.rotation = [0,0]
-        self.pos = [0,0,0]
         self.output = {}
+        self.size = 1
         for obj in points:
             self.output[obj] = {}
             for dott in points[obj]:
@@ -146,42 +139,37 @@ class CameraChanger:
     def rotate(self,index, add_ang):
         self.rotation[index] += add_ang
 
-    def move(self,index,add_mov):
-        pass
+    def resize(self,add_size):
+        self.size *= 1 + add_size / 100
 
     def render(self):
+        def angle_calc(_radius, _cord_0, _cord_1):
+            if _radius != 0:
+                _side = _cord_1
+                _angle = math.degrees(math.acos(_side / _radius))
+                if _cord_0 < 0:
+                    return 360 - _angle
+                return _angle
+            return 0
         for _obj in all_objects:
             for _point in points[_obj.name]:
                 # camera y rotation offset
                 index = (0,2,1)
                 radius = math.hypot(points[_obj.name][_point][index[0]] + _obj.pos[index[0]],
                                     points[_obj.name][_point][index[1]] + _obj.pos[index[1]])
-                if radius != 0:
-                    side = points[_obj.name][_point][index[1]] + _obj.pos[index[1]]
-                    start_angle = math.degrees(math.acos(side / radius))
-                    if points[_obj.name][_point][index[0]] + _obj.pos[index[0]] < 0:
-                        start_angle = 360 - start_angle
-                    angle = start_angle - self.rotation[index[2]]
-                else:
-                    angle = 0
+                angle = angle_calc(radius, points[_obj.name][_point][index[0]] + _obj.pos[index[0]],
+                                   points[_obj.name][_point][index[1]] + _obj.pos[index[1]]) - self.rotation[index[2]]
                 cord_x = points[_obj.name][_point][index[2]] + _obj.pos[index[2]]
                 cord_y = round(radius * math.sin(math.radians(angle)), 2)
                 cord_z = round(radius * math.cos(math.radians(angle)), 2)
                 # camera x rotation offset
                 index = (1, 2, 0)
                 radius = math.hypot(cord_x, cord_z)
-                if radius != 0:
-                    side = cord_z
-                    start_angle = math.degrees(math.acos(side / radius))
-                    if cord_x < 0:
-                        start_angle = 360 - start_angle
-                    angle = start_angle - self.rotation[index[2]]
-                else:
-                    angle = 0
+                angle = angle_calc(radius, cord_x, cord_z) - self.rotation[index[2]]
                 # final camera cord output
-                self.output[_obj.name][_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
-                self.output[_obj.name][_point][index[2]] = cord_y
-                self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
+                self.output[_obj.name][_point][index[0]] = round(radius * math.sin(math.radians(angle)) * self.size, 2)
+                self.output[_obj.name][_point][index[2]] = round(cord_y * self.size,2)
+                self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)) * self.size, 2)
 
 class ObjectChanger:
     def __init__(self, obj_name,polygons=None,_points=None):
@@ -218,6 +206,13 @@ class ObjectChanger:
                 self.point_dict[_point][index] *= round(1 + add_size / 100,2)
         active_object.size *= 1 + add_size / 100
 
+# pygame initialization
+pygame.init()
+screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
+clock = pygame.time.Clock()
+background_color = (0, 5, 0)
+screen.fill(background_color)
+
 # objects
 square = ObjectChanger('square')
 plane = ObjectChanger('plane')
@@ -247,7 +242,6 @@ block2 = ObjectChanger('block2', (
             '8' : [ -33.0,-100.0, -33.0]})
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
-
 
 active_object = all_objects[0]
 camera = all_cameras[0]
@@ -299,7 +293,7 @@ while running:
             active_object.move(2, -2)
 
     # object size
-    elif keys[pygame.K_s]:
+    elif keys[pygame.K_x]:
         if keys[pygame.K_UP] and not keys[pygame.K_DOWN] and active_object.size < 3:
             active_object.resize(1)
         elif keys[pygame.K_DOWN] and not keys[pygame.K_UP] and active_object.size > 0.20:
@@ -332,22 +326,31 @@ while running:
                 active_object.rotate(point,(0,1),-1)
             active_object.rotation[2] -= 1
 
-    # camera rotation
+    # camera
     else:
-        if keys[pygame.K_UP]:
+        # rotation
+        if keys[pygame.K_UP] and not  keys[pygame.K_DOWN]:
             if camera.rotation[0] < 85:
                 camera.rotate( 0, 1)
-        elif keys[pygame.K_DOWN]:
+        elif keys[pygame.K_DOWN] and not keys[pygame.K_UP]:
             if camera.rotation[0] > -85:
                 camera.rotate( 0, -1)
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
             camera.rotate( 1, 1)
-        elif keys[pygame.K_LEFT]:
+        elif keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
             camera.rotate( 1, -1)
+        # resizing
+        if keys[pygame.K_RALT] and not keys[pygame.K_RCTRL] and camera.size < 3:
+            camera.resize(1)
+        elif keys[pygame.K_RCTRL] and not keys[pygame.K_RALT] and camera.size > 0.20:
+            camera.resize(-1)
 
     """ OUTPUT """
+    # background
     screen.fill(background_color)
     pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
+
+    # objects output
     render_object(plane, 255)
     render_object(square, 0)
     for _object in all_objects:
@@ -360,6 +363,7 @@ while running:
     # in-game info output
     font = pygame.font.Font(None, 40)
     messages = [
+
     f'Objects : {[i.name + f" ({num})" for num, i in enumerate(all_objects, 1)]}',
     f'Object : {active_object.name}',
     f'Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°',
@@ -371,6 +375,7 @@ while running:
     f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
     f'# Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
     f'# Size : {active_object.size:.2f}']
+
     for num, message in enumerate(messages):
         text = font.render(message, True, (255, 255, 255))
         screen.blit(text, (5, 5 + num * 35))
