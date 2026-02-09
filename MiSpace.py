@@ -2,7 +2,8 @@ import pygame
 import math
 
 center = (1190, 540)
-var = {'active' : True, 'analytic' : True}
+mouse_cords = center
+var = {'active' : True, 'analytic' : True, 'mouse' : ()}
 all_objects = []
 all_cameras = []
 object_order = []
@@ -99,9 +100,9 @@ def calculate_polygon(_object):
 
     def sort(_order, condition, content):
         if _order:
-            for num in range(len(_order)):
-                if condition > _order[num][1]:
-                    _order.insert(num, content)
+            for _num in range(len(_order)):
+                if condition > _order[_num][1]:
+                    _order.insert(_num, content)
                     return
         _order.append(content)
         return
@@ -258,6 +259,10 @@ while running:
                 calculate_polygon(_object)
 
     """ INPUT """
+    # rotation,movement and sizing
+    keys = pygame.key.get_pressed()
+    mouse_keys = pygame.mouse.get_pressed()
+
     for event in pygame.event.get():
         # ways to exit
         if event.type == pygame.QUIT:
@@ -265,35 +270,39 @@ while running:
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
 
+        # camera sizing with mouse
+        elif event.type == pygame.MOUSEWHEEL:
+            if (camera.size < 2 or event.y < 0) and (camera.size > 0.3 or event.y > 0):
+                camera.resize(event.y * 5)
+        # camera rotation with mouse and cursor control
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            pygame.mouse.set_visible(False) ; pygame.event.set_grab(True)
+            mouse_cords = pygame.mouse.get_pos()
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+            pygame.mouse.set_visible(True) ; pygame.event.set_grab(False)
+            pygame.mouse.set_pos(mouse_cords)
+        elif event.type == pygame.MOUSEMOTION and mouse_keys[2]:
+            dx, dy = event.rel
+            if (camera.rotation[0] < 85 or dy < 0) and (camera.rotation[0] > -85 or dy > 0):
+                camera.rotate(0, dy / 20)
+            camera.rotate(1, -dx / 20)
+
         # analytic mode
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
             var['analytic'] = True if var['analytic'] == False else False
             center = (1190, 540) if center == (990, 540) else (990, 540)
             var['active'] = True
 
-        # choosing the object
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_1 and len(all_objects) > 0:
-            active_object = all_objects[0]
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_2 and len(all_objects) > 1:
-            active_object = all_objects[1]
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_3 and len(all_objects) > 2:
-            active_object = all_objects[2]
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_4 and len(all_objects) > 3:
-            active_object = all_objects[3]
-
         #object change
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_o:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
             _index = all_objects.index(active_object)
             active_object = all_objects[_index + 1] if _index < len(all_objects) - 1 else all_objects[0]
             var['active'] = True
         # camera change
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_k:
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_k:
             _index = all_cameras.index(camera)
             camera = all_cameras[_index + 1] if _index < len(all_cameras) - 1 else all_cameras[0]
             var['active'] = True
-
-    # rotation,movement and sizing
-    keys = pygame.key.get_pressed()
 
     # object movement
     if keys[pygame.K_g]:
@@ -310,7 +319,7 @@ while running:
         elif keys[pygame.K_UP] and not keys[pygame.K_RALT]:
             active_object.move(2, -2)
 
-    # object size
+    # object resizing
     elif keys[pygame.K_x]:
         if keys[pygame.K_UP] and not keys[pygame.K_DOWN] and active_object.size < 3:
             active_object.resize(1)
@@ -331,25 +340,6 @@ while running:
             active_object.rotate((0, 1), 1)
         elif keys[pygame.K_RCTRL] and not keys[pygame.K_RALT]:
             active_object.rotate((0, 1),-1)
-
-    # camera
-    else:
-        # rotation
-        if keys[pygame.K_UP] and not  keys[pygame.K_DOWN]:
-            if camera.rotation[0] < 85:
-                camera.rotate( 0, 1)
-        elif keys[pygame.K_DOWN] and not keys[pygame.K_UP]:
-            if camera.rotation[0] > -85:
-                camera.rotate( 0, -1)
-        if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
-            camera.rotate( 1, 1)
-        elif keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
-            camera.rotate( 1, -1)
-        # resizing
-        if keys[pygame.K_RALT] and not keys[pygame.K_RCTRL] and camera.size < 3:
-            camera.resize(1)
-        elif keys[pygame.K_RCTRL] and not keys[pygame.K_RALT] and camera.size > 0.20:
-            camera.resize(-1)
 
     """ OUTPUT """
     # background
