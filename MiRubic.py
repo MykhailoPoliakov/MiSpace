@@ -3,7 +3,7 @@ import math
 
 center = (1190, 540)
 mouse_cords = center
-var = {'active' : True, 'analytic' : True}
+var = {'active' : True, 'analytic' : True, 'animation' : [0,0]}
 all_objects = []
 all_cameras = []
 object_order = []
@@ -15,7 +15,7 @@ colors = {
     'yellow': (255, 255,   0),
     'orange': (255, 165,   0),
     'white' : (255, 255, 255),
-    'gray'  : (127, 127, 127),
+    'gray'  : ( 50,  50,  50),
 }
 
 
@@ -28,7 +28,6 @@ def create_cube(_obj_name,points_offset, color_input):
     color_output = ['gray','gray','gray','gray','gray','gray']
     for _num in color_input:
         color_output[_num -1] = cube_color[_num-1]
-
     colored = ((('1', '2', '3', '4'), colors[color_output[0]]), (('5', '6', '7', '8'), colors[color_output[1]]),
                (('3', '4', '8', '7'), colors[color_output[2]]), (('1', '2', '6', '5'), colors[color_output[3]]),
                (('1', '4', '8', '5'), colors[color_output[4]]), (('2', '3', '7', '6'), colors[color_output[5]]))
@@ -56,12 +55,13 @@ def calculate_polygon(_object):
 
     def calculate_color(_depth, _colors):
         f_colors = []
-        if _depth > 100:
+        limit = 80 * camera.size
+        if _depth > limit:
             return _colors
-        elif _depth < -100:
-            return (_colors[1] / 1.5, _colors[1] / 1.5, _colors[2] / 1.5),
+        elif _depth < -limit:
+            return (_colors[0] / 1.5, _colors[1] / 1.5, _colors[2] / 1.5),
         for _color in _colors:
-            f_colors.append(int(_color / (1 + ((_depth - 100) / -40))))
+            f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
         return f_colors
 
     def sort(_order, condition, content):
@@ -110,8 +110,8 @@ class CameraChanger:
             for dott in points[obj]:
                 self.output[obj][dott] = [0, 0, 0]
 
-    def rotate(self,index, add_ang):
-        self.rotation[index] += add_ang
+    def rotate(self,index, _add_ang):
+        self.rotation[index] += _add_ang
         var['active'] = True
 
     def resize(self,add_size):
@@ -151,13 +151,13 @@ class ObjectChanger:
         self.size = 1
         self.polygons = polygons
 
-    def rotate(self,index, add_ang):
+    def rotate(self,index, _add_ang):
         for _point in points[active_object.name]:
             radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
             angle = angle_calc(radius, self.point_dict[_point][index[0]], self.point_dict[_point][index[1]]) - add_ang
             self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
             self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
-        self.rotation[1] += add_ang
+        self.rotation[1] += _add_ang
         var['active'] = True
 
     def move(self, index, add_move):
@@ -206,28 +206,26 @@ side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
 side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
 # center
 cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
-
-rubik = {
-    '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
-    '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
-    '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
-
-    '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
-    '221' : side_l    , '222' : cent_p, '223' : side_r    ,
-    '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
-
-    '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
-    '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
-    '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,
-}
-
-
 # cameras
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
 
+# default settings
+rubik = {'111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
+         '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
+         '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
+
+         '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
+         '221' : side_l    , '222' : cent_p, '223' : side_r    ,
+         '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
+
+         '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
+         '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
+         '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,}
+
 active_object = all_objects[0]
 camera = all_cameras[0]
+camera.rotate(1,45) ; camera.rotate(0,20)
 
 # pygame initialization
 pygame.init()
@@ -248,6 +246,35 @@ while running:
         for _object in all_objects:
             if _object.polygons:
                 calculate_polygon(_object)
+
+    if var['animation'][0] == 1:
+        if var['animation'][1] < 90:
+            add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
+            for obj_location in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
+                rubik[obj_location].rotate((0, 1), add_ang)
+            var['animation'][1] += add_ang
+        else:
+            place_list = []
+            for place in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
+                place_list.append(rubik[place])
+            for place in ['131', '121', '111', '132', '122', '112', '133', '123', '113']:
+                rubik[place] = place_list.pop(0)
+            var['animation'] = [0,0]
+
+    if var['animation'][0] == 2:
+        if var['animation'][1] < 90:
+            add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
+            for obj_location in ['113', '123', '133', '213', '223', '233', '313', '323', '333']:
+                rubik[obj_location].rotate((1, 2), add_ang)
+            var['animation'][1] += add_ang
+        else:
+            place_list = []
+            for place in ['113', '123', '133', '213', '223', '233', '313', '323', '333']:
+                place_list.append(rubik[place])
+            for place in ['133', '233', '333', '123', '223', '323', '113', '213', '313']:
+                rubik[place] = place_list.pop(0)
+            var['animation'] = [0,0]
+
 
     """ INPUT """
     # rotation,movement and sizing
@@ -296,11 +323,14 @@ while running:
             var['active'] = True
 
 
-
         #testing
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_j:
-            for obj_location in ['111','112','113','121','122','123','131','132','133']:
-                rubik[obj_location].rotate((0, 1), 5)
+        if not var['animation'][0]:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
+                var['animation'] = [1,0]
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                var['animation'] = [2,0]
+
+
 
     # object movement
     if keys[pygame.K_g]:
