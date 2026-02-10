@@ -23,6 +23,26 @@ def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
     return 360 - _angle if _cord_0 < 0 else _angle
 
+def create_cube(_obj_name,points_offset, color_input):
+    cube_color = ('red','yellow','green','blue','white','orange')
+    color_output = ['gray','gray','gray','gray','gray','gray']
+    for _num in color_input:
+        color_output[_num -1] = cube_color[_num-1]
+
+    colored = ((('1', '2', '3', '4'), colors[color_output[0]]), (('5', '6', '7', '8'), colors[color_output[1]]),
+               (('3', '4', '8', '7'), colors[color_output[2]]), (('1', '2', '6', '5'), colors[color_output[3]]),
+               (('1', '4', '8', '5'), colors[color_output[4]]), (('2', '3', '7', '6'), colors[color_output[5]]))
+    cube_points = {
+        '1': [ 33.0, 33.0, 33.0], '2': [ 33.0,-33.0, 33.0],
+        '3': [-33.0,-33.0, 33.0], '4': [-33.0, 33.0, 33.0],
+        '5': [ 33.0, 33.0,-33.0], '6': [ 33.0,-33.0,-33.0],
+        '7': [-33.0,-33.0,-33.0], '8': [-33.0, 33.0,-33.0]}
+    for point in cube_points:
+        cube_points[point][0] += points_offset[0]
+        cube_points[point][1] += points_offset[1]
+        cube_points[point][2] += points_offset[2]
+    return [_obj_name,colored,cube_points]
+
 def render_object(_object, choose_color):
     for _point in points[_object.name]:
         # z cord (depth calculation)
@@ -137,7 +157,7 @@ class ObjectChanger:
             angle = angle_calc(radius, self.point_dict[_point][index[0]], self.point_dict[_point][index[1]]) - add_ang
             self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
             self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
-        self.rotation[1] += 1
+        self.rotation[1] += add_ang
         var['active'] = True
 
     def move(self, index, add_move):
@@ -151,44 +171,57 @@ class ObjectChanger:
         self.size *= 1 + add_size / 100
         var['active'] = True
 
-def create_cube(_obj_name,points_offset, color_input):
-    cube_color = ('red','yellow','green','blue','white','orange')
-    color_output = ['gray','gray','gray','gray','gray','gray']
-    for _num in color_input:
-        color_output[_num -1] = cube_color[_num-1]
-
-    colored = ((('1', '2', '3', '4'), colors[color_output[0]]), (('5', '6', '7', '8'), colors[color_output[1]]),
-               (('3', '4', '8', '7'), colors[color_output[2]]), (('1', '2', '6', '5'), colors[color_output[3]]),
-               (('1', '4', '8', '5'), colors[color_output[4]]), (('2', '3', '7', '6'), colors[color_output[5]]))
-    cube_points = {
-        '1': [ 33.0, 33.0, 33.0], '2': [ 33.0,-33.0, 33.0],
-        '3': [-33.0,-33.0, 33.0], '4': [-33.0, 33.0, 33.0],
-        '5': [ 33.0, 33.0,-33.0], '6': [ 33.0,-33.0,-33.0],
-        '7': [-33.0,-33.0,-33.0], '8': [-33.0, 33.0,-33.0]}
-    for point in cube_points:
-        cube_points[point][0] += points_offset[0]
-        cube_points[point][1] += points_offset[1]
-        cube_points[point][2] += points_offset[2]
-    return [_obj_name,colored,cube_points]
-
-
 """Objects"""
 # corners
 corner_lfu = ObjectChanger(*create_cube('corner_lfu',(-66, 66, 66), (1,3,5)))
 corner_lfd = ObjectChanger(*create_cube('corner_lfd',(-66,-66, 66), (1,3,6)))
 corner_rfu = ObjectChanger(*create_cube('corner_rfu',( 66, 66, 66), (1,4,5)))
 corner_rfd = ObjectChanger(*create_cube('corner_rfd',( 66,-66, 66), (1,4,6)))
+
 corner_lbu = ObjectChanger(*create_cube('corner_lbu',(-66, 66,-66), (2,3,5)))
 corner_lbd = ObjectChanger(*create_cube('corner_lbd',(-66,-66,-66), (2,3,6)))
 corner_rbu = ObjectChanger(*create_cube('corner_rbu',( 66, 66,-66), (2,4,5)))
 corner_rbd = ObjectChanger(*create_cube('corner_rbd',( 66,-66,-66), (2,4,6)))
 # cuts
-cut_lu = ObjectChanger(*create_cube('cut_lu',(-66, 66, 0), (3,5)))
+cut_lu = ObjectChanger(*create_cube('cut_lu',(-66, 66,  0), (3,5)))
+cut_ru = ObjectChanger(*create_cube('cut_ru',( 66, 66,  0), (4,5)))
+cut_fu = ObjectChanger(*create_cube('cut_fu',(  0, 66, 66), (1,5)))
+cut_bu = ObjectChanger(*create_cube('cut_bu',(  0, 66,-66), (2,5)))
+
+cut_lf = ObjectChanger(*create_cube('cut_lf',(-66,  0, 66), (3,1)))
+cut_rf = ObjectChanger(*create_cube('cut_rf',( 66,  0, 66), (4,1)))
+cut_lb = ObjectChanger(*create_cube('cut_lb',(-66,  0,-66), (3,2)))
+cut_rb = ObjectChanger(*create_cube('cut_rb',( 66,  0,-66), (4,2)))
+
+cut_ld = ObjectChanger(*create_cube('cut_ld',(-66,-66,  0), (3,6)))
+cut_rd = ObjectChanger(*create_cube('cut_rd',( 66,-66,  0), (4,6)))
+cut_fd = ObjectChanger(*create_cube('cut_fd',(  0,-66, 66), (1,6)))
+cut_bd = ObjectChanger(*create_cube('cut_bd',(  0,-66,-66), (2,6)))
+# sides
+side_f = ObjectChanger(*create_cube('side_f',(  0,  0, 66), (1,)))
+side_b = ObjectChanger(*create_cube('side_b',(  0,  0,-66), (2,)))
+side_l = ObjectChanger(*create_cube('side_l',(-66,  0,  0), (3,)))
+side_r = ObjectChanger(*create_cube('side_r',( 66,  0,  0), (4,)))
+side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
+side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
+# center
+cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
 
 rubik = {
-    'lfu' : corner_lfu, 'lfd' : corner_lfd, 'rfu' : corner_rfu,
+    '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
+    '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
+    '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
 
+    '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
+    '221' : side_l    , '222' : cent_p, '223' : side_r    ,
+    '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
+
+    '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
+    '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
+    '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,
 }
+
+
 # cameras
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
@@ -261,6 +294,13 @@ while running:
             _index = all_cameras.index(camera)
             camera = all_cameras[_index + 1] if _index < len(all_cameras) - 1 else all_cameras[0]
             var['active'] = True
+
+
+
+        #testing
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_j:
+            for obj_location in ['111','112','113','121','122','123','131','132','133']:
+                rubik[obj_location].rotate((0, 1), 5)
 
     # object movement
     if keys[pygame.K_g]:
