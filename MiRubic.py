@@ -1,9 +1,9 @@
 import pygame
 import math
-
+gog = 0
 center = (1190, 540)
 mouse_cords = center
-var = {'active' : True, 'analytic' : True, 'animation' : [0,0]}
+var = {'active' : True, 'analytic' : True, 'animation' : [0,0],'dir_check' : ['',False]}
 all_objects = []
 all_cameras = []
 object_order = []
@@ -18,6 +18,11 @@ colors = {
     'gray'  : ( 50,  50,  50),
 }
 
+
+def make_mask(_points):
+    surf = pygame.Surface((1920, 1080), pygame.SRCALPHA)
+    pygame.draw.polygon(surf, (255, 255, 255), _points)
+    return pygame.mask.from_surface(surf)
 
 def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
@@ -36,10 +41,10 @@ def create_cube(_obj_name,points_offset, color_input):
         '3': [-33.0,-33.0, 33.0], '4': [-33.0, 33.0, 33.0],
         '5': [ 33.0, 33.0,-33.0], '6': [ 33.0,-33.0,-33.0],
         '7': [-33.0,-33.0,-33.0], '8': [-33.0, 33.0,-33.0]}
-    for point in cube_points:
-        cube_points[point][0] += points_offset[0]
-        cube_points[point][1] += points_offset[1]
-        cube_points[point][2] += points_offset[2]
+    for _point in cube_points:
+        cube_points[_point][0] += points_offset[0]
+        cube_points[_point][1] += points_offset[1]
+        cube_points[_point][2] += points_offset[2]
     return [_obj_name,colored,cube_points]
 
 def render_object(_object, choose_color):
@@ -105,10 +110,10 @@ class CameraChanger:
         self.rotation = [0,0]
         self.output = {}
         self.size = 1
-        for obj in points:
-            self.output[obj] = {}
-            for dott in points[obj]:
-                self.output[obj][dott] = [0, 0, 0]
+        for _obj in points:
+            self.output[_obj] = {}
+            for dott in points[_obj]:
+                self.output[_obj][dott] = [0, 0, 0]
 
     def rotate(self,index, _add_ang):
         self.rotation[index] += _add_ang
@@ -208,9 +213,8 @@ cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
 
 # buttons
 button_f = ObjectChanger('button_f',((('1', '2', '3', '4'),(255,255,0)),),
-    {'1':  [ 233.0,  33.0, 33.0],'2': [ 233.0,-33.0, 33.0],
-            '3':  [ 233.0,-33.0, -33.0],'4': [ 233.0, 33.0, -33.0]})
-print(button_f.polygons[0][0])
+    {'1': [ 33.0, 33.0, 101.0], '2': [ 33.0,-33.0, 101.0],
+            '3': [-33.0,-33.0, 101.0], '4': [-33.0, 33.0, 101.0],})
 
 
 # cameras
@@ -236,7 +240,7 @@ camera.rotate(1,45) ; camera.rotate(0,20)
 
 # pygame initialization
 pygame.init()
-screen = pygame.display.set_mode((1980, 1080), pygame.FULLSCREEN | pygame.SCALED)
+screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
 background_color = (0, 5, 0)
 screen.fill(background_color)
@@ -279,6 +283,20 @@ while running:
             for place in ['113', '123', '133', '213', '223', '233', '313', '323', '333']:
                 place_list.append(rubik[place])
             for place in ['133', '233', '333', '123', '223', '323', '113', '213', '313']:
+                rubik[place] = place_list.pop(0)
+            var['animation'] = [0,0]
+
+    if var['animation'][0] == 3:
+        if var['animation'][1] < 90:
+            add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
+            for obj_location in ['112', '122', '132', '212', '222', '232', '312', '322', '332']:
+                rubik[obj_location].rotate((1, 2), add_ang)
+            var['animation'][1] += add_ang
+        else:
+            place_list = []
+            for place in ['112', '122', '132', '212', '222', '232', '312', '322', '332']:
+                place_list.append(rubik[place])
+            for place in ['132', '232', '332', '122', '222', '322', '112', '212', '312']:
                 rubik[place] = place_list.pop(0)
             var['animation'] = [0,0]
 
@@ -337,11 +355,28 @@ while running:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                 var['animation'] = [2,0]
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                new_list = []
+                for obj in object_order:
+                    if obj[0] == button_f:
+                        for point in list(obj[3][('1', '2', '3', '4')]['render_points']):
+                            new_list.append((point[0], point[1]))
+                        break
+                mask = make_mask(new_list)
                 mx, my = pygame.mouse.get_pos()
+                if mask.get_at((mx, my)):
+                    var['dir_check'] = ['button_f',True]
+                    _dx, _dy = 0,0
 
-
+            if var['dir_check'][1]:
+                if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
+                    _dx += event.rel[0] ; _dy += event.rel[1]
+                    if _dy > 30:
+                        var['animation'] = [3, 0]
+                        var['dir_check'][1] = False
+                    if _dx > 30:
+                        var['animation'] = [2, 0]
+                        var['dir_check'][1] = False
 
 
     # object movement
@@ -408,7 +443,7 @@ while running:
         f'Size : {camera.size:.2f}',
         f'',
         f'State : {'active' if var['active'] else 'passive'}',
-        f'{keys[pygame.K_u]}']
+        f'{gog}']
         for num, message in enumerate(messages):
             text = font.render(message, True, (255, 255, 255))
             screen.blit(text, (15, 5 + num * 35))
