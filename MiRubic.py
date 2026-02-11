@@ -47,6 +47,27 @@ def create_cube(_obj_name,points_offset, color_input):
         cube_points[_point][2] += points_offset[2]
     return [_obj_name,colored,cube_points]
 
+def create_button(_obj_name,points_offset, direction):
+    colored = ((('1', '2', '3', '4'), (255,255,255)),)
+    cof = -1 if direction in ['b','r','d'] else 1
+    if   direction in ['f','b']:
+        _points = {'1': [ 33.0, 33.0,  0], '2': [ 33.0,-33.0,   0],
+                   '3': [-33.0,-33.0,  0], '4': [-33.0, 33.0,   0],}
+        index = (0, 1, 2)
+    elif direction in ['l','r']:
+        _points = {'1': [ 0, 33.0,  33.0], '2': [ 0,-33.0,  33.0],
+                   '3': [ 0,-33.0, -33.0], '4': [ 0, 33.0, -33.0],}
+        index = (1, 2, 0)
+    elif direction in ['u','d']:
+        _points = {'1': [ 33.0, 0,  33.0], '2': [ 33.0, 0, -33.0],
+                   '3': [-33.0, 0, -33.0], '4': [-33.0, 0,  33.0],}
+        index = (2, 0, 1)
+    for _point in _points:
+        _points[_point][index[0]] += points_offset[0] * cof
+        _points[_point][index[1]] += points_offset[1] * cof
+        _points[_point][index[2]] += 100 * cof
+    return [_obj_name,colored,_points]
+
 def render_object(_object, choose_color):
     for _point in points[_object.name]:
         # z cord (depth calculation)
@@ -176,45 +197,52 @@ class ObjectChanger:
         var['active'] = True
 
 """Objects"""
-# corners
-corner_lfu = ObjectChanger(*create_cube('corner_lfu',(-66, 66, 66), (1,3,5)))
-corner_lfd = ObjectChanger(*create_cube('corner_lfd',(-66,-66, 66), (1,3,6)))
-corner_rfu = ObjectChanger(*create_cube('corner_rfu',( 66, 66, 66), (1,4,5)))
-corner_rfd = ObjectChanger(*create_cube('corner_rfd',( 66,-66, 66), (1,4,6)))
+cube_active = True
+if cube_active:
+    # corners
+    corner_lfu = ObjectChanger(*create_cube('corner_lfu',(-66, 66, 66), (1,3,5)))
+    corner_lfd = ObjectChanger(*create_cube('corner_lfd',(-66,-66, 66), (1,3,6)))
+    corner_rfu = ObjectChanger(*create_cube('corner_rfu',( 66, 66, 66), (1,4,5)))
+    corner_rfd = ObjectChanger(*create_cube('corner_rfd',( 66,-66, 66), (1,4,6)))
 
-corner_lbu = ObjectChanger(*create_cube('corner_lbu',(-66, 66,-66), (2,3,5)))
-corner_lbd = ObjectChanger(*create_cube('corner_lbd',(-66,-66,-66), (2,3,6)))
-corner_rbu = ObjectChanger(*create_cube('corner_rbu',( 66, 66,-66), (2,4,5)))
-corner_rbd = ObjectChanger(*create_cube('corner_rbd',( 66,-66,-66), (2,4,6)))
-# cuts
-cut_lu = ObjectChanger(*create_cube('cut_lu',(-66, 66,  0), (3,5)))
-cut_ru = ObjectChanger(*create_cube('cut_ru',( 66, 66,  0), (4,5)))
-cut_fu = ObjectChanger(*create_cube('cut_fu',(  0, 66, 66), (1,5)))
-cut_bu = ObjectChanger(*create_cube('cut_bu',(  0, 66,-66), (2,5)))
+    corner_lbu = ObjectChanger(*create_cube('corner_lbu',(-66, 66,-66), (2,3,5)))
+    corner_lbd = ObjectChanger(*create_cube('corner_lbd',(-66,-66,-66), (2,3,6)))
+    corner_rbu = ObjectChanger(*create_cube('corner_rbu',( 66, 66,-66), (2,4,5)))
+    corner_rbd = ObjectChanger(*create_cube('corner_rbd',( 66,-66,-66), (2,4,6)))
+    # cuts
+    cut_lu = ObjectChanger(*create_cube('cut_lu',(-66, 66,  0), (3,5)))
+    cut_ru = ObjectChanger(*create_cube('cut_ru',( 66, 66,  0), (4,5)))
+    cut_fu = ObjectChanger(*create_cube('cut_fu',(  0, 66, 66), (1,5)))
+    cut_bu = ObjectChanger(*create_cube('cut_bu',(  0, 66,-66), (2,5)))
 
-cut_lf = ObjectChanger(*create_cube('cut_lf',(-66,  0, 66), (3,1)))
-cut_rf = ObjectChanger(*create_cube('cut_rf',( 66,  0, 66), (4,1)))
-cut_lb = ObjectChanger(*create_cube('cut_lb',(-66,  0,-66), (3,2)))
-cut_rb = ObjectChanger(*create_cube('cut_rb',( 66,  0,-66), (4,2)))
+    cut_lf = ObjectChanger(*create_cube('cut_lf',(-66,  0, 66), (3,1)))
+    cut_rf = ObjectChanger(*create_cube('cut_rf',( 66,  0, 66), (4,1)))
+    cut_lb = ObjectChanger(*create_cube('cut_lb',(-66,  0,-66), (3,2)))
+    cut_rb = ObjectChanger(*create_cube('cut_rb',( 66,  0,-66), (4,2)))
 
-cut_ld = ObjectChanger(*create_cube('cut_ld',(-66,-66,  0), (3,6)))
-cut_rd = ObjectChanger(*create_cube('cut_rd',( 66,-66,  0), (4,6)))
-cut_fd = ObjectChanger(*create_cube('cut_fd',(  0,-66, 66), (1,6)))
-cut_bd = ObjectChanger(*create_cube('cut_bd',(  0,-66,-66), (2,6)))
-# sides
-side_f = ObjectChanger(*create_cube('side_f',(  0,  0, 66), (1,)))
-side_b = ObjectChanger(*create_cube('side_b',(  0,  0,-66), (2,)))
-side_l = ObjectChanger(*create_cube('side_l',(-66,  0,  0), (3,)))
-side_r = ObjectChanger(*create_cube('side_r',( 66,  0,  0), (4,)))
-side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
-side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
-# center
-cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
+    cut_ld = ObjectChanger(*create_cube('cut_ld',(-66,-66,  0), (3,6)))
+    cut_rd = ObjectChanger(*create_cube('cut_rd',( 66,-66,  0), (4,6)))
+    cut_fd = ObjectChanger(*create_cube('cut_fd',(  0,-66, 66), (1,6)))
+    cut_bd = ObjectChanger(*create_cube('cut_bd',(  0,-66,-66), (2,6)))
+    # sides
+    side_f = ObjectChanger(*create_cube('side_f',(  0,  0, 66), (1,)))
+    side_b = ObjectChanger(*create_cube('side_b',(  0,  0,-66), (2,)))
+    side_l = ObjectChanger(*create_cube('side_l',(-66,  0,  0), (3,)))
+    side_r = ObjectChanger(*create_cube('side_r',( 66,  0,  0), (4,)))
+    side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
+    side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
+    # center
+    cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
 
 # buttons
-button_f = ObjectChanger('button_f',((('1', '2', '3', '4'),(255,255,0)),),
-    {'1': [ 33.0, 33.0, 101.0], '2': [ 33.0,-33.0, 101.0],
-            '3': [-33.0,-33.0, 101.0], '4': [-33.0, 33.0, 101.0],})
+buttons = {}
+for side in ['f','b','l','r']:
+    break
+    buttons[f'{side}m'] = ObjectChanger(*create_button(f'button_{side}m',(  0,  0),side))
+    buttons[f'{side}u'] = ObjectChanger(*create_button(f'button_{side}u',(  0, 66),side))
+    buttons[f'{side}d'] = ObjectChanger(*create_button(f'button_{side}d',(  0,-66),side))
+    buttons[f'{side}l'] = ObjectChanger(*create_button(f'button_{side}l',( 66,  0),side))
+    buttons[f'{side}r'] = ObjectChanger(*create_button(f'button_{side}r',(-66,  0),side))
 
 
 # cameras
@@ -222,21 +250,23 @@ camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
 
 # default settings
-rubik = {'111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
-         '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
-         '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
-
-         '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
-         '221' : side_l    , '222' : cent_p, '223' : side_r    ,
-         '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
-
-         '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
-         '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
-         '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,}
+if cube_active:
+    rubik = {# first layer (front)
+             '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
+             '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
+             '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
+             # second layer (mid)
+             '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
+             '221' : side_l    , '222' : cent_p, '223' : side_r    ,
+             '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
+             # third layer (back)
+             '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
+             '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
+             '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,}
 
 active_object = all_objects[0]
 camera = all_cameras[0]
-camera.rotate(1,45) ; camera.rotate(0,20)
+#camera.rotate(1,45) ; camera.rotate(0,20)
 
 # pygame initialization
 pygame.init()
@@ -259,6 +289,7 @@ while running:
                 calculate_polygon(_object)
 
     if var['animation'][0] == 1:
+        var['dir_check'] = ['', False]
         if var['animation'][1] < 90:
             add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
             for obj_location in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
@@ -273,6 +304,7 @@ while running:
             var['animation'] = [0,0]
 
     if var['animation'][0] == 2:
+        var['dir_check'] = ['', False]
         if var['animation'][1] < 90:
             add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
             for obj_location in ['113', '123', '133', '213', '223', '233', '313', '323', '333']:
@@ -287,6 +319,7 @@ while running:
             var['animation'] = [0,0]
 
     if var['animation'][0] == 3:
+        var['dir_check'] = ['', False]
         if var['animation'][1] < 90:
             add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
             for obj_location in ['112', '122', '132', '212', '222', '232', '312', '322', '332']:
@@ -355,10 +388,20 @@ while running:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                 var['animation'] = [2,0]
 
+
+            if var['dir_check'][1] and var['dir_check'][0] == 'button_f':
+                if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
+                    _dx += event.rel[0] ; _dy += event.rel[1]
+                    if _dy > 20:
+                        var['animation'] = [3, 0]
+                    if _dx > 20:
+                        var['animation'] = [2, 0]
+                else:
+                    var['dir_check'] = [0,0]
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 new_list = []
                 for obj in object_order:
-                    if obj[0] == button_f:
+                    if obj[0] == buttons['fm']:
                         for point in list(obj[3][('1', '2', '3', '4')]['render_points']):
                             new_list.append((point[0], point[1]))
                         break
@@ -367,16 +410,6 @@ while running:
                 if mask.get_at((mx, my)):
                     var['dir_check'] = ['button_f',True]
                     _dx, _dy = 0,0
-
-            if var['dir_check'][1]:
-                if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
-                    _dx += event.rel[0] ; _dy += event.rel[1]
-                    if _dy > 30:
-                        var['animation'] = [3, 0]
-                        var['dir_check'][1] = False
-                    if _dx > 30:
-                        var['animation'] = [2, 0]
-                        var['dir_check'][1] = False
 
 
     # object movement
