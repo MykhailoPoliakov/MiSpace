@@ -140,10 +140,9 @@ class CameraChanger:
                 self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)) * self.size, 2)
 
 class ObjectChanger:
-    def __init__(self, obj_name,polygons=None,_points=None):
+    def __init__(self, obj_name,polygons,_points):
         all_objects.append(self)
-        if _points:
-            points[obj_name] = _points
+        points[obj_name] = _points
         self.point_dict = points[obj_name]
         self.name = obj_name
         self.pos = [0,0,0]
@@ -154,7 +153,7 @@ class ObjectChanger:
     def rotate(self,index, _add_ang):
         for _point in points[active_object.name]:
             radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
-            angle = angle_calc(radius, self.point_dict[_point][index[0]], self.point_dict[_point][index[1]]) - add_ang
+            angle = angle_calc(radius, self.point_dict[_point][index[0]], self.point_dict[_point][index[1]]) - _add_ang
             self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
             self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
         self.rotation[1] += _add_ang
@@ -206,6 +205,14 @@ side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
 side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
 # center
 cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
+
+# buttons
+button_f = ObjectChanger('button_f',((('1', '2', '3', '4'),(255,255,0)),),
+    {'1':  [ 233.0,  33.0, 33.0],'2': [ 233.0,-33.0, 33.0],
+            '3':  [ 233.0,-33.0, -33.0],'4': [ 233.0, 33.0, -33.0]})
+print(button_f.polygons[0][0])
+
+
 # cameras
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
@@ -330,6 +337,11 @@ while running:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
                 var['animation'] = [2,0]
 
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                mx, my = pygame.mouse.get_pos()
+
+
 
 
     # object movement
@@ -346,14 +358,12 @@ while running:
             active_object.move(2, 2)
         elif keys[pygame.K_UP] and not keys[pygame.K_RALT]:
             active_object.move(2, -2)
-
     # object resizing
     elif keys[pygame.K_x]:
         if keys[pygame.K_UP] and not keys[pygame.K_DOWN] and active_object.size < 3:
             active_object.resize(1)
         elif keys[pygame.K_DOWN] and not keys[pygame.K_UP] and active_object.size > 0.20:
             active_object.resize(-1)
-
     # object rotation
     elif keys[pygame.K_r]:
         if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
@@ -397,7 +407,8 @@ while running:
         f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
         f'Size : {camera.size:.2f}',
         f'',
-        f'State : {'active' if var['active'] else 'passive'}']
+        f'State : {'active' if var['active'] else 'passive'}',
+        f'{keys[pygame.K_u]}']
         for num, message in enumerate(messages):
             text = font.render(message, True, (255, 255, 255))
             screen.blit(text, (15, 5 + num * 35))
