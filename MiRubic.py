@@ -21,8 +21,7 @@ colors = {
 }
 
 def anim_and_rot(_str):
-
-    if _str[0] == 'x':
+    if   _str[0] == 'x':
         _blocks = blocks_x ; index = (1,2)
     elif _str[0] == 'y':
         _blocks = blocks_y ; index = (0,2)
@@ -39,7 +38,9 @@ def anim_and_rot(_str):
             rubik_rotation(_blocks, _str)
 
 def rubik_rotation(in_pl, rotation_cord):
+    print(rotation_cord)
     in_pl.pop(4)
+    print(in_pl)
     _place_list = []
     index_add = []
     if rotation_cord == 'xd':
@@ -54,6 +55,7 @@ def rubik_rotation(in_pl, rotation_cord):
         index_add = in_pl[-2:] + in_pl[:-2]
     if rotation_cord == 'yr':
         index_add = in_pl[2:] + in_pl[:2]
+    print(index_add)
     # rewriting position
     for _place in in_pl:
         _place_list.append(rubik[_place])
@@ -277,7 +279,7 @@ cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
 
 # buttons
 buttons = {}
-i_let = (['u','l','d','r'],['l','d','r','u'],['d','l','u','r'],['l','u','r','d'])
+i_let = (['u','l','d','r'],['l','d','r','u'],['d','r','u','l'],['r','u','l','d'])
 for num, side in enumerate(['f','r','b','l']):
     let = i_let[num]
     buttons[f'{side}m'] = ObjectChanger(*create_button(f'button_{side}m',(  0,  0),side))
@@ -336,20 +338,51 @@ while running:
         var['dir_check'] = ['', False]
         blocks_x = ['112', '122', '132', '232', '222', '332', '322', '312', '212']
         blocks_y = ['121', '122', '123', '223', '222', '323', '322', '321', '221']
-        blocks_z = ['211', '212', '213', '221', '222', '223', '231', '232', '233']
-        # inversion
+        blocks_z = ['211', '221', '231', '232', '222', '233', '223', '213', '212']
 
-        if var['animation'][0][0] in ['button_fm','button_bm']:
-            for letter in ['xd','xu','yl','yr']:
-                if var['animation'][0][1] == letter[1]:
-                    anim_and_rot(letter)
-                    break
+        if var['animation'][0][0][-1] == 'm':
 
-        elif var['animation'][0][0] in ['button_rm','button_lm']:
-            for letter in ['zd', 'zu', 'yl', 'yr']:
-                if var['animation'][0][1] == letter[1]:
-                    anim_and_rot(letter)
-                    break
+            if var['animation'][0][0][-2] in ['f','b']:
+                for letter in ['xd','xu','yl','yr']:
+                    if var['animation'][0][1] == letter[1]:
+                        anim_and_rot(letter)
+                        break
+
+            elif var['animation'][0][0][-2] in ['r','l']:
+                for letter in ['zd', 'zu', 'yl', 'yr']:
+                    if var['animation'][0][1] == letter[1]:
+                        anim_and_rot(letter)
+                        break
+
+        elif var['animation'][0][0][-1] in ['l','r'] and var['animation'][0][-1] in ['u','d']:
+            # all left and right buttons for x rotation
+            if var['animation'][0][0][-2] in ['f', 'b']:
+
+                if var['animation'][0][0][-1] == 'l':
+                    for num in range(9):
+                        blocks_x[num] = str(int(blocks_x[num]) - 1)
+                if var['animation'][0][0][-1] == 'r':
+                    for num in range(9):
+                        blocks_x[num] = str(int(blocks_x[num]) + 1)
+
+                for letter in ['xd', 'xu']:
+                    if var['animation'][0][1] == letter[1]:
+                        anim_and_rot(letter)
+                        break
+
+            elif var['animation'][0][0][-2] in ['l', 'r']:
+
+                if var['animation'][0][0][-1] == 'l':
+                    for num in range(9):
+                        blocks_z[num] = str(int(blocks_z[num]) - 100)
+                if var['animation'][0][0][-1] == 'r':
+                    for num in range(9):
+                        blocks_z[num] = str(int(blocks_z[num]) + 100)
+
+                for letter in ['zd', 'zu']:
+                    if var['animation'][0][1] == letter[1]:
+                        anim_and_rot(letter)
+                        break
 
         # all up and down buttons for y rotation
         elif var['animation'][0][0][-1] in ['u','d']:
@@ -364,18 +397,8 @@ while running:
                     anim_and_rot(letter)
                     break
 
-        # all left and right buttons for x rotation
-        elif var['animation'][0][0][-2:] in ['fr', 'fl', 'br', 'bl']:
-            if var['animation'][0][0][-1] == 'l':
-                for num in range(9):
-                    blocks_x[num] = str(int(blocks_x[num]) - 1)
-            if var['animation'][0][0][-1] == 'r':
-                for num in range(9):
-                    blocks_x[num] = str(int(blocks_x[num]) + 1)
-            for letter in ['xd','xu']:
-                if var['animation'][0][1] == letter[1]:
-                    anim_and_rot(letter)
-                    break
+        else:
+            var['animation'] = [[],0]
 
     """ INPUT """
     # rotation,movement and sizing
@@ -429,7 +452,7 @@ while running:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 new_list = []
                 for _object in object_order:
-                    if _object[0].name[:6] == 'button' and _object[1] > 210:
+                    if _object[0].name[:6] == 'button' and _object[1] > 120:
                         for point in list(_object[3][('1', '2', '3', '4')]['render_points']):
                             new_list.append((point[0], point[1]))
                         button_name = _object[0].name
@@ -442,14 +465,16 @@ while running:
             if var['dir_check'][1] and var['dir_check'][0] == button_name:
                 if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
                     dx += event.rel[0] ; dy += event.rel[1]
+                    # inversion of mirrored side
+                    inv_let = 'u' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'd'
                     if   dx >  30:
                         var['animation'] = [[button_name,'r'], 0]
                     elif dy < -30:
-                        var['animation'] = [[button_name,'u'], 0]
+                        var['animation'] = [[button_name, inv_let], 0]
                     elif dx < -30:
                         var['animation'] = [[button_name,'l'], 0]
                     elif dy >  30:
-                        var['animation'] = [[button_name,'d'], 0]
+                        var['animation'] = [[button_name, inv_let], 0]
                 output_dop_text = var['animation']
 
 
