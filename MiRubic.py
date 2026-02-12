@@ -1,8 +1,10 @@
 import pygame
 import math
+import random
 
 center = (1190, 540)
-var = {'active' : True, 'analytic' : True, 'animation' : [[],0],'dir_check' : ['',False], 'out_text' : ''}
+var = {'active' : True, 'analytic' : True, 'animation' : [[],0],
+       'dir_check' : ['',False], 'out_text' : '','shuffle' : False} # globals
 all_objects = []
 all_cameras = []
 points = {}
@@ -13,8 +15,7 @@ colors = {
     'yellow': (255, 255,   0),
     'orange': (255, 165,   0),
     'white' : (255, 255, 255),
-    'gray'  : ( 50,  50,  50),
-}
+    'gray'  : ( 50,  50,  50),}
 
 def rubik_rotation(rotation_cord):
     # rotation properties
@@ -28,13 +29,17 @@ def rubik_rotation(rotation_cord):
     _cof = -1 if rotation_cord[1] in ['u','r'] else 1
     if var['animation'][0][1] == rotation_cord[1]:
         if var['animation'][1] < 90:
-            _add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
+            if var['shuffle']:
+                _add_ang = 30
+            else:
+                _add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
             for _obj_location in _blocks:
                 rubik[_obj_location].rotate(index, _add_ang * _cof)
             var['animation'][1] += _add_ang
         else:
+            # delete center point
+            _blocks.pop(4)
             # blocks change after rotation animation
-            _blocks.pop(4) # delete center point
             index_add = []
             if rotation_cord[0] == 'x':
                 index_add = _blocks[2:] + _blocks[:2] if rotation_cord[1] == 'd' else _blocks[-2:] + _blocks[:-2]
@@ -54,6 +59,7 @@ def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
     return 360 - _angle if _cord_0 < 0 else _angle
 
+""" Objects Creation Functions """
 def create_cube(_obj_name,points_offset, color_input):
     cube_color = ('red','yellow','green','blue','white','orange')
     color_output = ['gray','gray','gray','gray','gray','gray']
@@ -94,55 +100,9 @@ def create_button(_obj_name,points_offset, direction):
         _points[_point][index[2]] += 100 * cof
     return [_obj_name,colored,_points]
 
-def calculate_polygon(_object):
-    """calculate point output from camera angle and sort objects from nearest to farthest"""
-    def calculate_color(_depth, _colors):
-        """calculate color based on z position of an object"""
-        f_colors = []
-        limit = 80 * camera.size
-        if _depth > limit:
-            return _colors
-        elif _depth < -limit:
-            return (_colors[0] / 1.5, _colors[1] / 1.5, _colors[2] / 1.5),
-        for _color in _colors:
-            f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
-        return f_colors
-    def sort(_order, condition, content):
-        """sort object or polygon based on z position"""
-        if _order:
-            for _num in range(len(_order)):
-                if condition > _order[_num][1]:
-                    _order.insert(_num, content)
-                    return
-        _order.append(content)
-        return
-    polygons = {}
-    order = []
-    polygon_depth = 0
-    for polygon, color in _object.polygons:
-        polygons[polygon] = {'render_points' : [], 'depth_ev' : 0}
-        for _point in polygon:
-            # z cord (depth calculation)
-            mult = round((((camera.output[_object.name][_point][2] + 125) / 375) + 2),2)
-            polygons[polygon]['render_points'].append((round(center[0] + (camera.output[_object.name][_point][0]) * mult,2),
-                                    round(center[1] - (camera.output[_object.name][_point][1]) * mult,2)))
-            depth = int(camera.output[_object.name][_point][2])
-            polygons[polygon]['depth_ev'] += depth
-            polygon_depth += depth
-        # color of the polygon calculation
-        final_color = calculate_color(polygons[polygon]['depth_ev'] / 4, color)
-        # in "order" sorting all polygons of an object
-        sort(order, polygons[polygon]['depth_ev'], (polygon, polygons[polygon]['depth_ev'],tuple(final_color)))
-    # in "object_order" sorting object itself
-    sort(camera.object_order, polygon_depth , (_object, polygon_depth, order[::-1],polygons))
-
-def render_polygon(object_info):
-    for _polygon, _depth, _color in object_info[2]:
-        pygame.draw.polygon(screen, _color, object_info[3][_polygon]['render_points'])
-        pygame.draw.polygon(screen, (0, 0, 0) , object_info[3][_polygon]['render_points'],4)
-
+""" Camera Class """
 class CameraChanger:
-    def __init__(self,name):
+    def __init__(self,name,rotation=(0,0)):
         all_cameras.append(self)
         self.name = name
         self.rotation = [0,0]
@@ -151,8 +111,9 @@ class CameraChanger:
         self.object_order = []
         for _obj in points:
             self.output[_obj] = {}
-            for dott in points[_obj]:
-                self.output[_obj][dott] = [0, 0, 0]
+            for _point in points[_obj]:
+                self.output[_obj][_point] = [0, 0, 0]
+        self.rotate(0, rotation[0]); self.rotate(1, rotation[1])
 
     def rotate(self,index, _add_ang):
         self.rotation[index] += _add_ang
@@ -164,6 +125,26 @@ class CameraChanger:
 
     def render(self):
         """calculating points position on the screen"""
+        def calculate_color(_depth, _colors):
+            """calculate color based on z position of an object"""
+            f_colors = []
+            limit = 80 * camera.size
+            if _depth > limit:
+                return _colors
+            elif _depth < -limit:
+                return (_colors[0] / 1.5, _colors[1] / 1.5, _colors[2] / 1.5),
+            for _color in _colors:
+                f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
+            return f_colors
+        def sort(_order, condition, content):
+            """sort object or polygon based on z position"""
+            if _order:
+                for _num in range(len(_order)):
+                    if condition > _order[_num][1]:
+                        _order.insert(_num, content)
+                        return
+            _order.append(content)
+            return
         for _obj in all_objects:
             for _point in points[_obj.name]:
                 # camera y rotation offset
@@ -186,8 +167,34 @@ class CameraChanger:
         # creating colored polygons from points and sorting them
         self.object_order = []
         for _obj in all_objects:
-            calculate_polygon(_obj)
+            polygons = {} ; order = []
+            polygon_depth = 0
+            for polygon, color in _obj.polygons:
+                polygons[polygon] = {'render_points': [], 'depth_ev': 0}
+                for _point in polygon:
+                    # z cord (depth calculation)
+                    mult = round((((camera.output[_obj.name][_point][2] + 125) / 375) + 2), 2)
+                    polygons[polygon]['render_points'].append(
+                        (round(center[0] + (camera.output[_obj.name][_point][0]) * mult, 2),
+                         round(center[1] - (camera.output[_obj.name][_point][1]) * mult, 2)))
+                    depth = int(camera.output[_obj.name][_point][2])
+                    polygons[polygon]['depth_ev'] += depth
+                    polygon_depth += depth
+                # color of the polygon calculation
+                final_color = calculate_color(polygons[polygon]['depth_ev'] / 4, color)
+                # in "order" sorting all polygons of an object
+                sort(order, polygons[polygon]['depth_ev'], (polygon, polygons[polygon]['depth_ev'], tuple(final_color)))
+            # in "object_order" sorting object itself
+            sort(self.object_order, polygon_depth, (_obj, polygon_depth, order[::-1], polygons))
 
+    def render_polygon(self):
+        for obj_info in self.object_order[::-1]:
+            if obj_info[0].name[:6] != 'button':
+                for _polygon, _depth, _color in obj_info[2]:
+                    pygame.draw.polygon(screen, _color, obj_info[3][_polygon]['render_points'])
+                    pygame.draw.polygon(screen, (25, 25, 25), obj_info[3][_polygon]['render_points'], 3)
+
+""" Object Class """
 class ObjectChanger:
     def __init__(self, obj_name,polygons,_points):
         all_objects.append(self)
@@ -267,8 +274,8 @@ for num, side in enumerate(['f','r','b','l']):
     buttons[f'{side}{let[3]}'] = ObjectChanger(*create_button(f'button_{side}{let[3]}',( 66,  0),side))
 
 # cameras
-camera1 = CameraChanger('Camera 1')
-camera2 = CameraChanger('Camera 2')
+camera1 = CameraChanger('Camera 1',(20,45))
+camera2 = CameraChanger('Camera 2',(20,45))
 
 # default settings
 rubik = {# first layer (front)
@@ -286,7 +293,6 @@ rubik = {# first layer (front)
 
 active_object = all_objects[0]
 camera = all_cameras[0]
-camera.rotate(1,45) ; camera.rotate(0,20)
 
 # pygame initialization
 pygame.init()
@@ -299,6 +305,16 @@ screen.fill(background_color)
 running = True
 while running:
     """ BRAIN """
+    if var['shuffle']:
+        if not var['animation'][0]:
+            gog = True
+            while gog:
+                button1 = random.choice(all_objects)
+                if button1.name[:6] == 'button':
+                    break
+            letter1 = random.choice(['l', 'r', 'u', 'd'])
+            var['animation'] = [[button1.name, letter1], 0]
+
     # objects re-render if action made
     if var['active']:
         var['active'] = False
@@ -370,12 +386,11 @@ while running:
                 if var['animation'][0][1] == letter[1]:
                     rubik_rotation(letter)
                     break
-
+        # if no action done
         else:
             var['animation'] = [[],0]
 
     """ INPUT """
-    # rotation,movement and sizing
     keys = pygame.key.get_pressed()
     mouse_keys = pygame.mouse.get_pressed()
 
@@ -409,11 +424,9 @@ while running:
             center = (1190, 540) if center == (990, 540) else (990, 540)
             var['active'] = True
 
-        #object change
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_o:
-            _index = all_objects.index(active_object)
-            active_object = all_objects[_index + 1] if _index < len(all_objects) - 1 else all_objects[0]
-            var['active'] = True
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_b:
+            var['shuffle'] = True if var['shuffle'] == False else False
+
         # camera change
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_k:
             _index = all_cameras.index(camera)
@@ -455,51 +468,13 @@ while running:
                         var['animation'] = [[button_name, inv_let], 0]
                 var['out_text'] = var['animation'] # for visualization
 
-
-    # object movement
-    if keys[pygame.K_g]:
-        if keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
-            active_object.move(0,2)
-        elif keys[pygame.K_LEFT]  and not keys[pygame.K_RIGHT]:
-            active_object.move(0, -2)
-        if keys[pygame.K_RALT]    and not keys[pygame.K_DOWN]:
-            active_object.move(1,2)
-        elif keys[pygame.K_RCTRL]  and not keys[pygame.K_UP]:
-            active_object.move(1,-2)
-        if keys[pygame.K_DOWN]  and not keys[pygame.K_RCTRL]:
-            active_object.move(2, 2)
-        elif keys[pygame.K_UP] and not keys[pygame.K_RALT]:
-            active_object.move(2, -2)
-    # object resizing
-    elif keys[pygame.K_x]:
-        if keys[pygame.K_UP] and not keys[pygame.K_DOWN] and active_object.size < 3:
-            active_object.resize(1)
-        elif keys[pygame.K_DOWN] and not keys[pygame.K_UP] and active_object.size > 0.20:
-            active_object.resize(-1)
-    # object rotation
-    elif keys[pygame.K_r]:
-        if keys[pygame.K_LEFT] and not keys[pygame.K_RIGHT]:
-            active_object.rotate((0, 2), 1)
-        elif keys[pygame.K_RIGHT] and not keys[pygame.K_LEFT]:
-            active_object.rotate((0, 2),-1)
-        if keys[pygame.K_UP] and not keys[pygame.K_DOWN]:
-            active_object.rotate((1, 2), 1)
-        elif keys[pygame.K_DOWN] and not keys[pygame.K_UP]:
-            active_object.rotate((1, 2),-1)
-        if keys[pygame.K_RALT] and not keys[pygame.K_RCTRL]:
-            active_object.rotate((0, 1), 1)
-        elif keys[pygame.K_RCTRL] and not keys[pygame.K_RALT]:
-            active_object.rotate((0, 1),-1)
-
     """ OUTPUT """
     # background
     screen.fill(background_color)
     pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
 
     # objects output render
-    for _object in camera.object_order[::-1]:
-        if _object[0].name[:6] != 'button':
-            render_polygon(_object)
+    camera.render_polygon()
 
     # in-game info output
     if var['analytic']:
@@ -509,11 +484,6 @@ while running:
 
         f'Fps : {fps}',
         f'' ,
-        f'Object : {active_object.name}',
-        f'Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°',
-        f'Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
-        f'Size : {active_object.size:.2f}',
-        f'',
         f'Cameras : {[i.name for i in all_cameras]}',
         f'Camera : {camera.name}',
         f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
