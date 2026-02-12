@@ -1,14 +1,10 @@
 import pygame
 import math
 
-output_dop_text = ''
-
 center = (1190, 540)
-mouse_cords = center
-var = {'active' : True, 'analytic' : True, 'animation' : [[],0],'dir_check' : ['',False]}
+var = {'active' : True, 'analytic' : True, 'animation' : [[],0],'dir_check' : ['',False], 'out_text' : ''}
 all_objects = []
 all_cameras = []
-object_order = []
 points = {}
 colors = {
     'red'   : (255,   0,   0),
@@ -20,54 +16,39 @@ colors = {
     'gray'  : ( 50,  50,  50),
 }
 
-def anim_and_rot(_str):
-    if   _str[0] == 'x':
+def rubik_rotation(rotation_cord):
+    # rotation properties
+    if   rotation_cord[0] == 'x':
         _blocks = blocks_x ; index = (1,2)
-    elif _str[0] == 'y':
+    elif rotation_cord[0] == 'y':
         _blocks = blocks_y ; index = (0,2)
-    elif _str[0] == 'z':
+    elif rotation_cord[0] == 'z':
         _blocks = blocks_z ; index = (0,1)
-    _cof = -1 if _str[1] in ['u','r'] else 1
-    if var['animation'][0][1] == _str[1]:
+    # rotation animation
+    _cof = -1 if rotation_cord[1] in ['u','r'] else 1
+    if var['animation'][0][1] == rotation_cord[1]:
         if var['animation'][1] < 90:
             _add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
             for _obj_location in _blocks:
                 rubik[_obj_location].rotate(index, _add_ang * _cof)
             var['animation'][1] += _add_ang
         else:
-            rubik_rotation(_blocks, _str)
-
-def rubik_rotation(in_pl, rotation_cord):
-    print(rotation_cord)
-    in_pl.pop(4)
-    print(in_pl)
-    _place_list = []
-    index_add = []
-    if rotation_cord == 'xd':
-        index_add = in_pl[2:] + in_pl[:2]
-    if rotation_cord == 'xu':
-        index_add = in_pl[-2:] + in_pl[:-2]
-    if rotation_cord == 'zd':
-        index_add = in_pl[2:] + in_pl[:2]
-    if rotation_cord == 'zu':
-        index_add = in_pl[-2:] + in_pl[:-2]
-    if rotation_cord == 'yl':
-        index_add = in_pl[-2:] + in_pl[:-2]
-    if rotation_cord == 'yr':
-        index_add = in_pl[2:] + in_pl[:2]
-    print(index_add)
-    # rewriting position
-    for _place in in_pl:
-        _place_list.append(rubik[_place])
-    for _place in index_add:
-        rubik[_place] = _place_list.pop(0)
-    var['animation'] = [[], 0]
-    return
-
-def make_mask(_points):
-    surf = pygame.Surface((1920, 1080), pygame.SRCALPHA)
-    pygame.draw.polygon(surf, (255, 255, 255), _points)
-    return pygame.mask.from_surface(surf)
+            # blocks change after rotation animation
+            _blocks.pop(4) # delete center point
+            index_add = []
+            if rotation_cord[0] == 'x':
+                index_add = _blocks[2:] + _blocks[:2] if rotation_cord[1] == 'd' else _blocks[-2:] + _blocks[:-2]
+            elif rotation_cord[0] == 'z':
+                index_add = _blocks[2:] + _blocks[:2] if rotation_cord[1] == 'd' else _blocks[-2:] + _blocks[:-2]
+            elif rotation_cord[0] == 'y':
+                index_add = _blocks[2:] + _blocks[:2] if rotation_cord[1] == 'r' else _blocks[-2:] + _blocks[:-2]
+            # rewriting position
+            _place_list = []
+            for _place in _blocks:
+                _place_list.append(rubik[_place])
+            for _place in index_add:
+                rubik[_place] = _place_list.pop(0)
+            var['animation'] = [[], 0]
 
 def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
@@ -113,18 +94,10 @@ def create_button(_obj_name,points_offset, direction):
         _points[_point][index[2]] += 100 * cof
     return [_obj_name,colored,_points]
 
-def render_object(_object, choose_color):
-    for _point in points[_object.name]:
-        # z cord (depth calculation)
-        mult = (((camera.output[_object.name][_point][2] + 125) / 375) + 2)
-        # x and y cord output
-        pygame.draw.rect(screen, (0, 0, choose_color),
-                        (center[0] + (camera.output[_object.name][_point][0]) * mult,
-                        center[1] - (camera.output[_object.name][_point][1]) * mult, 10, 10))
-
 def calculate_polygon(_object):
-
+    """calculate point output from camera angle and sort objects from nearest to farthest"""
     def calculate_color(_depth, _colors):
+        """calculate color based on z position of an object"""
         f_colors = []
         limit = 80 * camera.size
         if _depth > limit:
@@ -134,8 +107,8 @@ def calculate_polygon(_object):
         for _color in _colors:
             f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
         return f_colors
-
     def sort(_order, condition, content):
+        """sort object or polygon based on z position"""
         if _order:
             for _num in range(len(_order)):
                 if condition > _order[_num][1]:
@@ -143,7 +116,6 @@ def calculate_polygon(_object):
                     return
         _order.append(content)
         return
-
     polygons = {}
     order = []
     polygon_depth = 0
@@ -162,7 +134,7 @@ def calculate_polygon(_object):
         # in "order" sorting all polygons of an object
         sort(order, polygons[polygon]['depth_ev'], (polygon, polygons[polygon]['depth_ev'],tuple(final_color)))
     # in "object_order" sorting object itself
-    sort(object_order, polygon_depth , (_object, polygon_depth, order[::-1],polygons))
+    sort(camera.object_order, polygon_depth , (_object, polygon_depth, order[::-1],polygons))
 
 def render_polygon(object_info):
     for _polygon, _depth, _color in object_info[2]:
@@ -176,6 +148,7 @@ class CameraChanger:
         self.rotation = [0,0]
         self.output = {}
         self.size = 1
+        self.object_order = []
         for _obj in points:
             self.output[_obj] = {}
             for dott in points[_obj]:
@@ -190,6 +163,7 @@ class CameraChanger:
         var['active'] = True
 
     def render(self):
+        """calculating points position on the screen"""
         for _obj in all_objects:
             for _point in points[_obj.name]:
                 # camera y rotation offset
@@ -209,6 +183,10 @@ class CameraChanger:
                 self.output[_obj.name][_point][index[0]] = round(radius * math.sin(math.radians(angle)) * self.size, 2)
                 self.output[_obj.name][_point][index[2]] = round(cord_y * self.size,2)
                 self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)) * self.size, 2)
+        # creating colored polygons from points and sorting them
+        self.object_order = []
+        for _obj in all_objects:
+            calculate_polygon(_obj)
 
 class ObjectChanger:
     def __init__(self, obj_name,polygons,_points):
@@ -288,7 +266,6 @@ for num, side in enumerate(['f','r','b','l']):
     buttons[f'{side}{let[2]}'] = ObjectChanger(*create_button(f'button_{side}{let[2]}',(  0,-66),side))
     buttons[f'{side}{let[3]}'] = ObjectChanger(*create_button(f'button_{side}{let[3]}',( 66,  0),side))
 
-
 # cameras
 camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
@@ -322,15 +299,10 @@ screen.fill(background_color)
 running = True
 while running:
     """ BRAIN """
-    # objects output calculation
+    # objects re-render if action made
     if var['active']:
         var['active'] = False
         camera.render()
-        object_order = []
-        for _object in all_objects:
-            if _object.polygons:
-                calculate_polygon(_object)
-
 
     # button animation and blocks rotation
     if var['animation'][0]:
@@ -341,16 +313,17 @@ while running:
 
         if var['animation'][0][0][-1] == 'm':
 
+
             if var['animation'][0][0][-2] in ['f','b']:
                 for letter in ['xd','xu','yl','yr']:
                     if var['animation'][0][1] == letter[1]:
-                        anim_and_rot(letter)
+                        rubik_rotation(letter)
                         break
 
             elif var['animation'][0][0][-2] in ['r','l']:
                 for letter in ['zd', 'zu', 'yl', 'yr']:
                     if var['animation'][0][1] == letter[1]:
-                        anim_and_rot(letter)
+                        rubik_rotation(letter)
                         break
 
         elif var['animation'][0][0][-1] in ['l','r'] and var['animation'][0][-1] in ['u','d']:
@@ -366,7 +339,7 @@ while running:
 
                 for letter in ['xd', 'xu']:
                     if var['animation'][0][1] == letter[1]:
-                        anim_and_rot(letter)
+                        rubik_rotation(letter)
                         break
 
             elif var['animation'][0][0][-2] in ['l', 'r']:
@@ -380,20 +353,22 @@ while running:
 
                 for letter in ['zd', 'zu']:
                     if var['animation'][0][1] == letter[1]:
-                        anim_and_rot(letter)
+                        rubik_rotation(letter)
                         break
 
         # all up and down buttons for y rotation
         elif var['animation'][0][0][-1] in ['u','d'] and var['animation'][0][-1] in ['l','r']:
+
             if var['animation'][0][0][-1] == 'u':
                 for num in range(9):
                     blocks_y[num] = str(int(blocks_y[num]) - 10)
             if var['animation'][0][0][-1] == 'd':
                 for num in range(9):
                     blocks_y[num] = str(int(blocks_y[num]) + 10)
+
             for letter in ['yl', 'yr']:
                 if var['animation'][0][1] == letter[1]:
-                    anim_and_rot(letter)
+                    rubik_rotation(letter)
                     break
 
         else:
@@ -445,18 +420,21 @@ while running:
             camera = all_cameras[_index + 1] if _index < len(all_cameras) - 1 else all_cameras[0]
             var['active'] = True
 
-
         # informating if any button was activated
         if not var['animation'][0]:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 new_list = []
-                for _object in object_order:
-                    if _object[0].name[:6] == 'button' and _object[1] > 120:
+                for _object in camera.object_order:
+                    if _object[0].name[:6] == 'button' and _object[1] > 0:
                         for point in list(_object[3][('1', '2', '3', '4')]['render_points']):
                             new_list.append((point[0], point[1]))
                         button_name = _object[0].name
-                        mask = make_mask(new_list)
+                        # mask creation
+                        surf = pygame.Surface((1920, 1080), pygame.SRCALPHA)
+                        pygame.draw.polygon(surf, (255, 255, 255), new_list)
+                        mask = pygame.mask.from_surface(surf)
                         mx, my = pygame.mouse.get_pos()
+                        # check if click was in the polygon
                         if mask.get_at((mx, my)):
                             var['dir_check'] = [button_name,True]
                             dx, dy = 0,0
@@ -475,7 +453,7 @@ while running:
                     elif dy >  30:
                         inv_let = 'u' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'd'
                         var['animation'] = [[button_name, inv_let], 0]
-                output_dop_text = var['animation']
+                var['out_text'] = var['animation'] # for visualization
 
 
     # object movement
@@ -519,7 +497,7 @@ while running:
     pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
 
     # objects output render
-    for _object in object_order[::-1]:
+    for _object in camera.object_order[::-1]:
         if _object[0].name[:6] != 'button':
             render_polygon(_object)
 
@@ -531,7 +509,6 @@ while running:
 
         f'Fps : {fps}',
         f'' ,
-        f'Objects : {[i.name for i in all_objects]}',
         f'Object : {active_object.name}',
         f'Rotation : x {active_object.rotation[0]:.0f}° y {active_object.rotation[1]:.0f}° z {active_object.rotation[2]:.0f}°',
         f'Coordinates : x {active_object.pos[0]:.2f} y {active_object.pos[1]:.2f} z {-active_object.pos[2]:.2f}',
@@ -543,7 +520,7 @@ while running:
         f'Size : {camera.size:.2f}',
         f'',
         f'State : {'active' if var['active'] else 'passive'}',
-        f'{output_dop_text}']
+        f'last rubik rotation : {var['out_text']}']
 
         for num, message in enumerate(messages):
             text = font.render(message, True, (255, 255, 255))
