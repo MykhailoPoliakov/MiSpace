@@ -5,7 +5,7 @@ output_dop_text = ''
 
 center = (1190, 540)
 mouse_cords = center
-var = {'active' : True, 'analytic' : True, 'animation' : [(),0],'dir_check' : ['',False]}
+var = {'active' : True, 'analytic' : True, 'animation' : [[],0],'dir_check' : ['',False]}
 all_objects = []
 all_cameras = []
 object_order = []
@@ -21,6 +21,7 @@ colors = {
 }
 
 def anim_and_rot(_str):
+
     if _str[0] == 'x':
         _blocks = blocks_x ; index = (1,2)
     elif _str[0] == 'y':
@@ -45,6 +46,10 @@ def rubik_rotation(in_pl, rotation_cord):
         index_add = in_pl[2:] + in_pl[:2]
     if rotation_cord == 'xu':
         index_add = in_pl[-2:] + in_pl[:-2]
+    if rotation_cord == 'zd':
+        index_add = in_pl[2:] + in_pl[:2]
+    if rotation_cord == 'zu':
+        index_add = in_pl[-2:] + in_pl[:-2]
     if rotation_cord == 'yl':
         index_add = in_pl[-2:] + in_pl[:-2]
     if rotation_cord == 'yr':
@@ -54,7 +59,7 @@ def rubik_rotation(in_pl, rotation_cord):
         _place_list.append(rubik[_place])
     for _place in index_add:
         rubik[_place] = _place_list.pop(0)
-    var['animation'] = [(), 0]
+    var['animation'] = [[], 0]
     return
 
 def make_mask(_points):
@@ -235,42 +240,40 @@ class ObjectChanger:
         var['active'] = True
 
 """Objects"""
-cube_active = True
-if cube_active:
-    # corners
-    corner_lfu = ObjectChanger(*create_cube('corner_lfu',(-66, 66, 66), (1,3,5)))
-    corner_lfd = ObjectChanger(*create_cube('corner_lfd',(-66,-66, 66), (1,3,6)))
-    corner_rfu = ObjectChanger(*create_cube('corner_rfu',( 66, 66, 66), (1,4,5)))
-    corner_rfd = ObjectChanger(*create_cube('corner_rfd',( 66,-66, 66), (1,4,6)))
+# corners
+corner_lfu = ObjectChanger(*create_cube('corner_lfu',(-66, 66, 66), (1,3,5)))
+corner_lfd = ObjectChanger(*create_cube('corner_lfd',(-66,-66, 66), (1,3,6)))
+corner_rfu = ObjectChanger(*create_cube('corner_rfu',( 66, 66, 66), (1,4,5)))
+corner_rfd = ObjectChanger(*create_cube('corner_rfd',( 66,-66, 66), (1,4,6)))
 
-    corner_lbu = ObjectChanger(*create_cube('corner_lbu',(-66, 66,-66), (2,3,5)))
-    corner_lbd = ObjectChanger(*create_cube('corner_lbd',(-66,-66,-66), (2,3,6)))
-    corner_rbu = ObjectChanger(*create_cube('corner_rbu',( 66, 66,-66), (2,4,5)))
-    corner_rbd = ObjectChanger(*create_cube('corner_rbd',( 66,-66,-66), (2,4,6)))
-    # cuts
-    cut_lu = ObjectChanger(*create_cube('cut_lu',(-66, 66,  0), (3,5)))
-    cut_ru = ObjectChanger(*create_cube('cut_ru',( 66, 66,  0), (4,5)))
-    cut_fu = ObjectChanger(*create_cube('cut_fu',(  0, 66, 66), (1,5)))
-    cut_bu = ObjectChanger(*create_cube('cut_bu',(  0, 66,-66), (2,5)))
+corner_lbu = ObjectChanger(*create_cube('corner_lbu',(-66, 66,-66), (2,3,5)))
+corner_lbd = ObjectChanger(*create_cube('corner_lbd',(-66,-66,-66), (2,3,6)))
+corner_rbu = ObjectChanger(*create_cube('corner_rbu',( 66, 66,-66), (2,4,5)))
+corner_rbd = ObjectChanger(*create_cube('corner_rbd',( 66,-66,-66), (2,4,6)))
+# cuts
+cut_lu = ObjectChanger(*create_cube('cut_lu',(-66, 66,  0), (3,5)))
+cut_ru = ObjectChanger(*create_cube('cut_ru',( 66, 66,  0), (4,5)))
+cut_fu = ObjectChanger(*create_cube('cut_fu',(  0, 66, 66), (1,5)))
+cut_bu = ObjectChanger(*create_cube('cut_bu',(  0, 66,-66), (2,5)))
 
-    cut_lf = ObjectChanger(*create_cube('cut_lf',(-66,  0, 66), (3,1)))
-    cut_rf = ObjectChanger(*create_cube('cut_rf',( 66,  0, 66), (4,1)))
-    cut_lb = ObjectChanger(*create_cube('cut_lb',(-66,  0,-66), (3,2)))
-    cut_rb = ObjectChanger(*create_cube('cut_rb',( 66,  0,-66), (4,2)))
+cut_lf = ObjectChanger(*create_cube('cut_lf',(-66,  0, 66), (3,1)))
+cut_rf = ObjectChanger(*create_cube('cut_rf',( 66,  0, 66), (4,1)))
+cut_lb = ObjectChanger(*create_cube('cut_lb',(-66,  0,-66), (3,2)))
+cut_rb = ObjectChanger(*create_cube('cut_rb',( 66,  0,-66), (4,2)))
 
-    cut_ld = ObjectChanger(*create_cube('cut_ld',(-66,-66,  0), (3,6)))
-    cut_rd = ObjectChanger(*create_cube('cut_rd',( 66,-66,  0), (4,6)))
-    cut_fd = ObjectChanger(*create_cube('cut_fd',(  0,-66, 66), (1,6)))
-    cut_bd = ObjectChanger(*create_cube('cut_bd',(  0,-66,-66), (2,6)))
-    # sides
-    side_f = ObjectChanger(*create_cube('side_f',(  0,  0, 66), (1,)))
-    side_b = ObjectChanger(*create_cube('side_b',(  0,  0,-66), (2,)))
-    side_l = ObjectChanger(*create_cube('side_l',(-66,  0,  0), (3,)))
-    side_r = ObjectChanger(*create_cube('side_r',( 66,  0,  0), (4,)))
-    side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
-    side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
-    # center
-    cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
+cut_ld = ObjectChanger(*create_cube('cut_ld',(-66,-66,  0), (3,6)))
+cut_rd = ObjectChanger(*create_cube('cut_rd',( 66,-66,  0), (4,6)))
+cut_fd = ObjectChanger(*create_cube('cut_fd',(  0,-66, 66), (1,6)))
+cut_bd = ObjectChanger(*create_cube('cut_bd',(  0,-66,-66), (2,6)))
+# sides
+side_f = ObjectChanger(*create_cube('side_f',(  0,  0, 66), (1,)))
+side_b = ObjectChanger(*create_cube('side_b',(  0,  0,-66), (2,)))
+side_l = ObjectChanger(*create_cube('side_l',(-66,  0,  0), (3,)))
+side_r = ObjectChanger(*create_cube('side_r',( 66,  0,  0), (4,)))
+side_u = ObjectChanger(*create_cube('side_u',(  0, 66,  0), (5,)))
+side_d = ObjectChanger(*create_cube('side_d',(  0,-66,  0), (6,)))
+# center
+cent_p = ObjectChanger(*create_cube('cent_p',(  0,  0,  0), ()))
 
 # buttons
 buttons = {}
@@ -289,23 +292,22 @@ camera1 = CameraChanger('Camera 1')
 camera2 = CameraChanger('Camera 2')
 
 # default settings
-if cube_active:
-    rubik = {# first layer (front)
-             '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
-             '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
-             '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
-             # second layer (mid)
-             '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
-             '221' : side_l    , '222' : cent_p, '223' : side_r    ,
-             '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
-             # third layer (back)
-             '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
-             '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
-             '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,}
+rubik = {# first layer (front)
+        '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
+        '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
+        '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
+        # second layer (mid)
+        '211' : cut_lu    , '212' : side_u, '213' : cut_ru    ,
+        '221' : side_l    , '222' : cent_p, '223' : side_r    ,
+        '231' : cut_ld    , '232' : side_d, '233' : cut_rd    ,
+        # third layer (back)
+        '311' : corner_lbu, '312' : cut_bu, '313' : corner_rbu,
+        '321' : cut_lb    , '322' : side_b, '323' : cut_rb    ,
+        '331' : corner_lbd, '332' : cut_bd, '333' : corner_rbd,}
 
 active_object = all_objects[0]
 camera = all_cameras[0]
-#camera.rotate(1,45) ; camera.rotate(0,20)
+camera.rotate(1,45) ; camera.rotate(0,20)
 
 # pygame initialization
 pygame.init()
@@ -332,18 +334,45 @@ while running:
     # button animation and blocks rotation
     if var['animation'][0]:
         var['dir_check'] = ['', False]
+        blocks_x = ['112', '122', '132', '232', '222', '332', '322', '312', '212']
+        blocks_y = ['121', '122', '123', '223', '222', '323', '322', '321', '221']
+        blocks_z = ['211', '212', '213', '221', '222', '223', '231', '232', '233']
+        # inversion
 
-        """
-                for place in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
-                for place in ['131', '121', '111', '132', '122', '112', '133', '123', '113']:
-        """
-
-        if var['animation'][0][0] == 'button_fm':
-            blocks_x = ['112', '122', '132', '232', '222', '332', '322', '312', '212']
-            blocks_y = ['121', '122', '123', '223', '222', '323', '322', '321', '221']
-            blocks_z = []
-
+        if var['animation'][0][0] in ['button_fm','button_bm']:
             for letter in ['xd','xu','yl','yr']:
+                if var['animation'][0][1] == letter[1]:
+                    anim_and_rot(letter)
+                    break
+
+        elif var['animation'][0][0] in ['button_rm','button_lm']:
+            for letter in ['zd', 'zu', 'yl', 'yr']:
+                if var['animation'][0][1] == letter[1]:
+                    anim_and_rot(letter)
+                    break
+
+        # all up and down buttons for y rotation
+        elif var['animation'][0][0][-1] in ['u','d']:
+            if var['animation'][0][0][-1] == 'u':
+                for num in range(9):
+                    blocks_y[num] = str(int(blocks_y[num]) - 10)
+            if var['animation'][0][0][-1] == 'd':
+                for num in range(9):
+                    blocks_y[num] = str(int(blocks_y[num]) + 10)
+            for letter in ['yl', 'yr']:
+                if var['animation'][0][1] == letter[1]:
+                    anim_and_rot(letter)
+                    break
+
+        # all left and right buttons for x rotation
+        elif var['animation'][0][0][-2:] in ['fr', 'fl', 'br', 'bl']:
+            if var['animation'][0][0][-1] == 'l':
+                for num in range(9):
+                    blocks_x[num] = str(int(blocks_x[num]) - 1)
+            if var['animation'][0][0][-1] == 'r':
+                for num in range(9):
+                    blocks_x[num] = str(int(blocks_x[num]) + 1)
+            for letter in ['xd','xu']:
                 if var['animation'][0][1] == letter[1]:
                     anim_and_rot(letter)
                     break
@@ -414,13 +443,13 @@ while running:
                 if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
                     dx += event.rel[0] ; dy += event.rel[1]
                     if   dx >  30:
-                        var['animation'] = [(button_name,'r'), 0]
+                        var['animation'] = [[button_name,'r'], 0]
                     elif dy < -30:
-                        var['animation'] = [(button_name,'u'), 0]
+                        var['animation'] = [[button_name,'u'], 0]
                     elif dx < -30:
-                        var['animation'] = [(button_name,'l'), 0]
+                        var['animation'] = [[button_name,'l'], 0]
                     elif dy >  30:
-                        var['animation'] = [(button_name,'d'), 0]
+                        var['animation'] = [[button_name,'d'], 0]
                 output_dop_text = var['animation']
 
 
