@@ -1,9 +1,11 @@
 import pygame
 import math
-gog = 0
+
+output_dop_text = ''
+
 center = (1190, 540)
 mouse_cords = center
-var = {'active' : True, 'analytic' : True, 'animation' : [0,0],'dir_check' : ['',False]}
+var = {'active' : True, 'analytic' : True, 'animation' : [(),0],'dir_check' : ['',False]}
 all_objects = []
 all_cameras = []
 object_order = []
@@ -18,6 +20,42 @@ colors = {
     'gray'  : ( 50,  50,  50),
 }
 
+def anim_and_rot(_str):
+    if _str[0] == 'x':
+        _blocks = blocks_x ; index = (1,2)
+    elif _str[0] == 'y':
+        _blocks = blocks_y ; index = (0,2)
+    elif _str[0] == 'z':
+        _blocks = blocks_z ; index = (0,1)
+    _cof = -1 if _str[1] in ['u','r'] else 1
+    if var['animation'][0][1] == _str[1]:
+        if var['animation'][1] < 90:
+            _add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
+            for _obj_location in _blocks:
+                rubik[_obj_location].rotate(index, _add_ang * _cof)
+            var['animation'][1] += _add_ang
+        else:
+            rubik_rotation(_blocks, _str)
+
+def rubik_rotation(in_pl, rotation_cord):
+    in_pl.pop(4)
+    _place_list = []
+    index_add = []
+    if rotation_cord == 'xd':
+        index_add = in_pl[2:] + in_pl[:2]
+    if rotation_cord == 'xu':
+        index_add = in_pl[-2:] + in_pl[:-2]
+    if rotation_cord == 'yl':
+        index_add = in_pl[-2:] + in_pl[:-2]
+    if rotation_cord == 'yr':
+        index_add = in_pl[2:] + in_pl[:2]
+    # rewriting position
+    for _place in in_pl:
+        _place_list.append(rubik[_place])
+    for _place in index_add:
+        rubik[_place] = _place_list.pop(0)
+    var['animation'] = [(), 0]
+    return
 
 def make_mask(_points):
     surf = pygame.Surface((1920, 1080), pygame.SRCALPHA)
@@ -49,7 +87,7 @@ def create_cube(_obj_name,points_offset, color_input):
 
 def create_button(_obj_name,points_offset, direction):
     colored = ((('1', '2', '3', '4'), (255,255,255)),)
-    cof = -1 if direction in ['b','r','d'] else 1
+    cof = -1 if direction in ['b','l','d'] else 1
     if   direction in ['f','b']:
         _points = {'1': [ 33.0, 33.0,  0], '2': [ 33.0,-33.0,   0],
                    '3': [-33.0,-33.0,  0], '4': [-33.0, 33.0,   0],}
@@ -62,7 +100,7 @@ def create_button(_obj_name,points_offset, direction):
         _points = {'1': [ 33.0, 0,  33.0], '2': [ 33.0, 0, -33.0],
                    '3': [-33.0, 0, -33.0], '4': [-33.0, 0,  33.0],}
         index = (2, 0, 1)
-    for _point in _points:
+    for _point in colored[0][0]:
         _points[_point][index[0]] += points_offset[0] * cof
         _points[_point][index[1]] += points_offset[1] * cof
         _points[_point][index[2]] += 100 * cof
@@ -236,13 +274,14 @@ if cube_active:
 
 # buttons
 buttons = {}
-for side in ['f','b','l','r']:
-    break
+i_let = (['u','l','d','r'],['l','d','r','u'],['d','l','u','r'],['l','u','r','d'])
+for num, side in enumerate(['f','r','b','l']):
+    let = i_let[num]
     buttons[f'{side}m'] = ObjectChanger(*create_button(f'button_{side}m',(  0,  0),side))
-    buttons[f'{side}u'] = ObjectChanger(*create_button(f'button_{side}u',(  0, 66),side))
-    buttons[f'{side}d'] = ObjectChanger(*create_button(f'button_{side}d',(  0,-66),side))
-    buttons[f'{side}l'] = ObjectChanger(*create_button(f'button_{side}l',( 66,  0),side))
-    buttons[f'{side}r'] = ObjectChanger(*create_button(f'button_{side}r',(-66,  0),side))
+    buttons[f'{side}{let[0]}'] = ObjectChanger(*create_button(f'button_{side}{let[0]}',(  0, 66),side))
+    buttons[f'{side}{let[1]}'] = ObjectChanger(*create_button(f'button_{side}{let[1]}',(-66,  0),side))
+    buttons[f'{side}{let[2]}'] = ObjectChanger(*create_button(f'button_{side}{let[2]}',(  0,-66),side))
+    buttons[f'{side}{let[3]}'] = ObjectChanger(*create_button(f'button_{side}{let[3]}',( 66,  0),side))
 
 
 # cameras
@@ -288,51 +327,26 @@ while running:
             if _object.polygons:
                 calculate_polygon(_object)
 
-    if var['animation'][0] == 1:
-        var['dir_check'] = ['', False]
-        if var['animation'][1] < 90:
-            add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
-            for obj_location in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
-                rubik[obj_location].rotate((0, 1), add_ang)
-            var['animation'][1] += add_ang
-        else:
-            place_list = []
-            for place in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
-                place_list.append(rubik[place])
-            for place in ['131', '121', '111', '132', '122', '112', '133', '123', '113']:
-                rubik[place] = place_list.pop(0)
-            var['animation'] = [0,0]
 
-    if var['animation'][0] == 2:
-        var['dir_check'] = ['', False]
-        if var['animation'][1] < 90:
-            add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
-            for obj_location in ['113', '123', '133', '213', '223', '233', '313', '323', '333']:
-                rubik[obj_location].rotate((1, 2), add_ang)
-            var['animation'][1] += add_ang
-        else:
-            place_list = []
-            for place in ['113', '123', '133', '213', '223', '233', '313', '323', '333']:
-                place_list.append(rubik[place])
-            for place in ['133', '233', '333', '123', '223', '323', '113', '213', '313']:
-                rubik[place] = place_list.pop(0)
-            var['animation'] = [0,0]
 
-    if var['animation'][0] == 3:
+    # button animation and blocks rotation
+    if var['animation'][0]:
         var['dir_check'] = ['', False]
-        if var['animation'][1] < 90:
-            add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
-            for obj_location in ['112', '122', '132', '212', '222', '232', '312', '322', '332']:
-                rubik[obj_location].rotate((1, 2), add_ang)
-            var['animation'][1] += add_ang
-        else:
-            place_list = []
-            for place in ['112', '122', '132', '212', '222', '232', '312', '322', '332']:
-                place_list.append(rubik[place])
-            for place in ['132', '232', '332', '122', '222', '322', '112', '212', '312']:
-                rubik[place] = place_list.pop(0)
-            var['animation'] = [0,0]
 
+        """
+                for place in ['111', '112', '113', '121', '122', '123', '131', '132', '133']:
+                for place in ['131', '121', '111', '132', '122', '112', '133', '123', '113']:
+        """
+
+        if var['animation'][0][0] == 'button_fm':
+            blocks_x = ['112', '122', '132', '232', '222', '332', '322', '312', '212']
+            blocks_y = ['121', '122', '123', '223', '222', '323', '322', '321', '221']
+            blocks_z = []
+
+            for letter in ['xd','xu','yl','yr']:
+                if var['animation'][0][1] == letter[1]:
+                    anim_and_rot(letter)
+                    break
 
     """ INPUT """
     # rotation,movement and sizing
@@ -381,35 +395,33 @@ while running:
             var['active'] = True
 
 
-        #testing
+        # informating if any button was activated
         if not var['animation'][0]:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
-                var['animation'] = [1,0]
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-                var['animation'] = [2,0]
-
-
-            if var['dir_check'][1] and var['dir_check'][0] == 'button_f':
-                if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
-                    _dx += event.rel[0] ; _dy += event.rel[1]
-                    if _dy > 20:
-                        var['animation'] = [3, 0]
-                    if _dx > 20:
-                        var['animation'] = [2, 0]
-                else:
-                    var['dir_check'] = [0,0]
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 new_list = []
-                for obj in object_order:
-                    if obj[0] == buttons['fm']:
-                        for point in list(obj[3][('1', '2', '3', '4')]['render_points']):
+                for _object in object_order:
+                    if _object[0].name[:6] == 'button' and _object[1] > 210:
+                        for point in list(_object[3][('1', '2', '3', '4')]['render_points']):
                             new_list.append((point[0], point[1]))
-                        break
-                mask = make_mask(new_list)
-                mx, my = pygame.mouse.get_pos()
-                if mask.get_at((mx, my)):
-                    var['dir_check'] = ['button_f',True]
-                    _dx, _dy = 0,0
+                        button_name = _object[0].name
+                        mask = make_mask(new_list)
+                        mx, my = pygame.mouse.get_pos()
+                        if mask.get_at((mx, my)):
+                            var['dir_check'] = [button_name,True]
+                            dx, dy = 0,0
+                            break
+            if var['dir_check'][1] and var['dir_check'][0] == button_name:
+                if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
+                    dx += event.rel[0] ; dy += event.rel[1]
+                    if   dx >  30:
+                        var['animation'] = [(button_name,'r'), 0]
+                    elif dy < -30:
+                        var['animation'] = [(button_name,'u'), 0]
+                    elif dx < -30:
+                        var['animation'] = [(button_name,'l'), 0]
+                    elif dy >  30:
+                        var['animation'] = [(button_name,'d'), 0]
+                output_dop_text = var['animation']
 
 
     # object movement
@@ -454,7 +466,8 @@ while running:
 
     # objects output render
     for _object in object_order[::-1]:
-        render_polygon(_object)
+        if _object[0].name[:6] != 'button':
+            render_polygon(_object)
 
     # in-game info output
     if var['analytic']:
@@ -476,7 +489,7 @@ while running:
         f'Size : {camera.size:.2f}',
         f'',
         f'State : {'active' if var['active'] else 'passive'}',
-        f'{gog}']
+        f'{output_dop_text}']
         for num, message in enumerate(messages):
             text = font.render(message, True, (255, 255, 255))
             screen.blit(text, (15, 5 + num * 35))
