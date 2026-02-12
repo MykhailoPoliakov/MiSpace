@@ -323,72 +323,47 @@ while running:
     # button animation and blocks rotation
     if var['animation'][0]:
         var['dir_check'] = ['', False]
+
         blocks_x = ['112', '122', '132', '232', '222', '332', '322', '312', '212']
         blocks_y = ['121', '122', '123', '223', '222', '323', '322', '321', '221']
         blocks_z = ['211', '221', '231', '232', '222', '233', '223', '213', '212']
 
-        if var['animation'][0][0][-1] == 'm':
+        directions = [] ; coef = ()
+        # side rotation
+        if var['animation'][0][0][-1] in ['u', 'd'] and var['animation'][0][-1] in ['l', 'r']:
+            directions = ['yl', 'yr']
+            coef = (10,('u','d')); blocks_ = blocks_y
+        # front and back side vertical rotation and center
+        elif var['animation'][0][0][-2] in ['f','b']:
+            if var['animation'][0][0][-1] == 'm':
+                directions = ['xd', 'xu', 'yl', 'yr']
+                blocks_ = blocks_x if var['animation'][0][-1] in ['u','d'] else blocks_y
+            elif var['animation'][0][0][-1] in ['l','r'] and var['animation'][0][-1] in ['u','d']:
+                directions = ['xd', 'xu']
+                coef = (1,('l','r')) ; blocks_ = blocks_x
+        # left and right side vertical rotation and center
+        elif var['animation'][0][0][-2] in ['l', 'r']:
+            if var['animation'][0][0][-1] == 'm':
+                directions = ['zd', 'zu', 'yl', 'yr']
+                blocks_ = blocks_z if var['animation'][0][-1] in ['u','d'] else blocks_y
+            elif var['animation'][0][0][-1] in ['l','r'] and var['animation'][0][-1] in ['u','d']:
+                directions = ['zd', 'zu']
+                coef = (100,('l','r')) ; blocks_ = blocks_z
 
-
-            if var['animation'][0][0][-2] in ['f','b']:
-                for letter in ['xd','xu','yl','yr']:
-                    if var['animation'][0][1] == letter[1]:
-                        rubik_rotation(letter)
+        if directions:
+            if coef:
+                for num1,c1 in zip((-1,1),coef[1]):
+                    if var['animation'][0][0][-1] == c1:
+                        for num in range(9):
+                            blocks_[num] = str(int(blocks_[num]) + coef[0] * num1)
                         break
-
-            elif var['animation'][0][0][-2] in ['r','l']:
-                for letter in ['zd', 'zu', 'yl', 'yr']:
-                    if var['animation'][0][1] == letter[1]:
-                        rubik_rotation(letter)
-                        break
-
-        elif var['animation'][0][0][-1] in ['l','r'] and var['animation'][0][-1] in ['u','d']:
-            # all left and right buttons for x rotation
-            if var['animation'][0][0][-2] in ['f', 'b']:
-
-                if var['animation'][0][0][-1] == 'l':
-                    for num in range(9):
-                        blocks_x[num] = str(int(blocks_x[num]) - 1)
-                if var['animation'][0][0][-1] == 'r':
-                    for num in range(9):
-                        blocks_x[num] = str(int(blocks_x[num]) + 1)
-
-                for letter in ['xd', 'xu']:
-                    if var['animation'][0][1] == letter[1]:
-                        rubik_rotation(letter)
-                        break
-
-            elif var['animation'][0][0][-2] in ['l', 'r']:
-
-                if var['animation'][0][0][-1] == 'l':
-                    for num in range(9):
-                        blocks_z[num] = str(int(blocks_z[num]) - 100)
-                if var['animation'][0][0][-1] == 'r':
-                    for num in range(9):
-                        blocks_z[num] = str(int(blocks_z[num]) + 100)
-
-                for letter in ['zd', 'zu']:
-                    if var['animation'][0][1] == letter[1]:
-                        rubik_rotation(letter)
-                        break
-
-        # all up and down buttons for y rotation
-        elif var['animation'][0][0][-1] in ['u','d'] and var['animation'][0][-1] in ['l','r']:
-
-            if var['animation'][0][0][-1] == 'u':
-                for num in range(9):
-                    blocks_y[num] = str(int(blocks_y[num]) - 10)
-            if var['animation'][0][0][-1] == 'd':
-                for num in range(9):
-                    blocks_y[num] = str(int(blocks_y[num]) + 10)
-
-            for letter in ['yl', 'yr']:
+            for letter in directions:
                 if var['animation'][0][1] == letter[1]:
                     rubik_rotation(letter)
                     break
-        # if no action done
         else:
             var['animation'] = [[],0]
+
 
     """ INPUT """
     keys = pygame.key.get_pressed()
