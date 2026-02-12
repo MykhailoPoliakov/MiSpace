@@ -332,7 +332,6 @@ while running:
                 calculate_polygon(_object)
 
 
-
     # button animation and blocks rotation
     if var['animation'][0]:
         var['dir_check'] = ['', False]
@@ -385,7 +384,7 @@ while running:
                         break
 
         # all up and down buttons for y rotation
-        elif var['animation'][0][0][-1] in ['u','d']:
+        elif var['animation'][0][0][-1] in ['u','d'] and var['animation'][0][-1] in ['l','r']:
             if var['animation'][0][0][-1] == 'u':
                 for num in range(9):
                     blocks_y[num] = str(int(blocks_y[num]) - 10)
@@ -466,14 +465,15 @@ while running:
                 if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
                     dx += event.rel[0] ; dy += event.rel[1]
                     # inversion of mirrored side
-                    inv_let = 'u' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'd'
                     if   dx >  30:
                         var['animation'] = [[button_name,'r'], 0]
                     elif dy < -30:
+                        inv_let = 'd' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'u'
                         var['animation'] = [[button_name, inv_let], 0]
                     elif dx < -30:
                         var['animation'] = [[button_name,'l'], 0]
                     elif dy >  30:
+                        inv_let = 'u' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'd'
                         var['animation'] = [[button_name, inv_let], 0]
                 output_dop_text = var['animation']
 
@@ -544,6 +544,7 @@ while running:
         f'',
         f'State : {'active' if var['active'] else 'passive'}',
         f'{output_dop_text}']
+
         for num, message in enumerate(messages):
             text = font.render(message, True, (255, 255, 255))
             screen.blit(text, (15, 5 + num * 35))
