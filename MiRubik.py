@@ -1,10 +1,11 @@
 import pygame
 import math
 import random
+import sys, os
 
-center = (990, 540)
+
 var = {'active' : True, 'analytic' : False, 'animation' : [[],0,''],
-       'dir_check' : '', 'out_text' : '','shuffle' : False, 'mode' : 'menu'} # globals
+       'dir_check' : '', 'out_text' : '','shuffle' : '', 'mode' : 'menu', 'mode_anim' : ['',0]} # globals
 all_objects = []
 all_cameras = []
 points = {}
@@ -12,7 +13,7 @@ colors = {
     'red'   : (255,   0,   0),
     'green' : (  0, 255,   0),
     'blue'  : (  0,   0, 255),
-    'yellow': (255, 255,   0),
+    'yellow': (210, 210,   0),
     'orange': (255, 165,   0),
     'white' : (255, 255, 255),
     'gray'  : ( 50,  50,  50),}
@@ -21,7 +22,13 @@ blocks_x = ['112', '122', '132', '232', '332', '322', '312', '212', '222']
 blocks_y = ['121', '122', '123', '223', '323', '322', '321', '221', '222']
 blocks_z = ['211', '221', '231', '232', '233', '223', '213', '212', '222']
 
+""" Textures """
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return relative_path
 
+""" Basic Functions """
 def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
     return 360 - _angle if _cord_0 < 0 else _angle
@@ -31,7 +38,7 @@ def angle_calc(_radius, _cord_0, _cord_1):
 def rubik_rotation(rotation_cord,_blocks,_index,_cof):
     # rotation animation
     if var['animation'][1] < 90:
-        if var['shuffle']:
+        if var['shuffle'] == 'fast':
             _add_ang = 30
         else:
             _add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
@@ -139,8 +146,9 @@ def create_button(_obj_name,points_offset, direction):
 class CameraChanger:
     def __init__(self,name,rotation=(0,0)):
         all_cameras.append(self)
+        self.init_rotation = rotation
         self.name = name
-        self.rotation = [0,0]
+        self.rotation = [rotation[0],rotation[1]]
         self.output = {}
         self.size = 1
         self.object_order = []
@@ -148,7 +156,6 @@ class CameraChanger:
             self.output[_obj] = {}
             for _point in points[_obj]:
                 self.output[_obj][_point] = [0, 0, 0]
-        self.rotate(0, rotation[0]); self.rotate(1, rotation[1])
 
     def rotate(self,index, _add_ang):
         self.rotation[index] += _add_ang
@@ -167,7 +174,7 @@ class CameraChanger:
             if _depth > limit:
                 return _colors
             elif _depth < -limit:
-                return (_colors[0] / 1.5, _colors[1] / 1.5, _colors[2] / 1.5),
+                return int(_colors[0] / 1.5), int(_colors[1] / 1.5), int(_colors[2] / 1.5)
             for _color in _colors:
                 f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
             return f_colors
@@ -227,7 +234,8 @@ class CameraChanger:
             if obj_info[0].name[:6] != 'button':
                 for _polygon, _depth, _color in obj_info[2]:
                     pygame.draw.polygon(screen, _color, obj_info[3][_polygon]['render_points'])
-                    pygame.draw.polygon(screen, (25, 25, 25), obj_info[3][_polygon]['render_points'], 3)
+                    line_color = (int(_color[0] / 2),int(_color[1] / 2),int(_color[2] / 2))
+                    pygame.draw.polygon(screen, line_color, obj_info[3][_polygon]['render_points'], 3)
 
 
 """ Object Class """
@@ -328,14 +336,28 @@ camera1 = CameraChanger('Camera 1',(20,45))
 camera2 = CameraChanger('Camera 2',(20,45))
 camera = all_cameras[0]
 
-""" Main Cycle """
+""" PyGame """
+
 pygame.init()
 screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN | pygame.SCALED)
 clock = pygame.time.Clock()
-background_color = (0, 5, 0)
+background_color = (55, 55, 55)
 screen.fill(background_color)
 
-var['mode'] = 'game'
+textures = {
+    'background' : pygame.image.load(resource_path("textures/background.png")).convert_alpha(),
+    'fade' : pygame.image.load(resource_path("textures/fade.png")).convert_alpha(),
+    'cosmos' : pygame.image.load(resource_path("textures/kosmos3.jpg")).convert_alpha(),
+}
+textures['fade'] = pygame.transform.scale(textures['fade'], (1920, 1080))
+textures['cosmos'] = pygame.transform.scale(textures['cosmos'], (1920, 1080))
+
+var['mode'] = 'menu'
+center = (550,540)
+camera.size = 0.8
+
+
+""" Main Cycle """
 running = True
 while running:
     """ BRAIN """
@@ -363,6 +385,15 @@ while running:
     if var['animation'][2]:
         rubik_rotation(var['animation'][2],*var['animation'][3])
 
+    if var['mode_anim'][0] == 'start':
+        var['mode_anim'][1] += 1
+        print(var['mode_anim'][1])
+        if 60 > var['mode_anim'][1] > 45:
+            var['shuffle'] = 'slow'
+        elif var['mode_anim'][1] > 60:
+            print('2')
+            var['shuffle'] = ''
+            var['mode_anim'] = ['', 0]
 
     """ INPUT """
     keys = pygame.key.get_pressed()
@@ -375,6 +406,20 @@ while running:
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
 
+        # game mode
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            var['mode'] = 'game' if var['mode'] == 'menu' else 'menu'
+            if var['mode'] == 'menu':
+                center = (550,540)
+                camera.size = 0.8
+                var['shuffle'] = ''
+            elif var['mode'] == 'game':
+                center = (990, 540)
+                camera.size = 1
+                camera.rotation = list(camera.init_rotation)
+                var['mode_anim'] = ['start', 0]
+                var['shuffle'] = 'fast'
+            var['active'] = True
 
         if var['mode'] == 'game':
             # camera sizing with mouse
@@ -402,7 +447,7 @@ while running:
 
             # shuffle mode activation
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_b:
-                var['shuffle'] = True if var['shuffle'] == False else False
+                var['shuffle'] = 'fast' if var['shuffle'] != 'fast' else ''
 
             # camera change
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_k:
@@ -447,11 +492,19 @@ while running:
 
     """ OUTPUT """
     # background
-    screen.fill(background_color)
-    pygame.draw.rect(screen, (255, 255, 0),(center[0], center[1], 5, 5))
+    screen.blit(textures['cosmos'], (0, 0))
+    screen.blit(textures['fade'], (0, 0))
 
     # objects output render
     camera.render_polygon()
+
+    if var['mode'] == 'menu':
+        font = pygame.font.Font(None, 90)
+        text = font.render(f"Play", True, (255, 255, 255))
+        screen.blit(text, (1500, 450))
+        camera.rotate(1,1)
+        camera.rotate(0, 1)
+
 
     # in-game info output
     if var['analytic']:
