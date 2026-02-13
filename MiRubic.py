@@ -3,7 +3,7 @@ import math
 import random
 
 center = (1190, 540)
-var = {'active' : True, 'analytic' : True, 'animation' : [[],0],
+var = {'active' : True, 'analytic' : True, 'animation' : [[],0,''],
        'dir_check' : ['',False], 'out_text' : '','shuffle' : False} # globals
 all_objects = []
 all_cameras = []
@@ -53,7 +53,7 @@ def rubik_rotation(rotation_cord):
                 _place_list.append(rubik[_place])
             for _place in index_add:
                 rubik[_place] = _place_list.pop(0)
-            var['animation'] = [[], 0]
+            var['animation'] = [[],0,'']
 
 def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
@@ -305,25 +305,24 @@ screen.fill(background_color)
 running = True
 while running:
     """ BRAIN """
+    # if shuffle mode
     if var['shuffle']:
         if not var['animation'][0]:
-            gog = True
-            while gog:
+            while True:
                 button1 = random.choice(all_objects)
                 if button1.name[:6] == 'button':
                     break
             letter1 = random.choice(['l', 'r', 'u', 'd'])
-            var['animation'] = [[button1.name, letter1], 0]
+            var['animation'] = [[button1.name, letter1], 0,'']
 
     # objects re-render if action made
     if var['active']:
         var['active'] = False
         camera.render()
 
-    # button animation and blocks rotation
-    if var['animation'][0]:
+    # calculating blocks to move and the direction
+    if var['animation'][0] and not var['animation'][2]:
         var['dir_check'] = ['', False]
-
         blocks_x = ['112', '122', '132', '232', '222', '332', '322', '312', '212']
         blocks_y = ['121', '122', '123', '223', '222', '323', '322', '321', '221']
         blocks_z = ['211', '221', '231', '232', '222', '233', '223', '213', '212']
@@ -359,10 +358,14 @@ while running:
                         break
             for letter in directions:
                 if var['animation'][0][1] == letter[1]:
-                    rubik_rotation(letter)
+                    var['animation'][2] = letter
                     break
         else:
-            var['animation'] = [[],0]
+            var['animation'] = [[],0,'']
+
+    # rotation
+    if var['animation'][2]:
+        rubik_rotation(var['animation'][2])
 
 
     """ INPUT """
@@ -409,8 +412,8 @@ while running:
             var['active'] = True
 
         # informating if any button was activated
-        if not var['animation'][0]:
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        elif not var['animation'][0]:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not mouse_keys[2]:
                 new_list = []
                 for _object in camera.object_order:
                     if _object[0].name[:6] == 'button' and _object[1] > 0:
@@ -427,20 +430,20 @@ while running:
                             var['dir_check'] = [button_name,True]
                             dx, dy = 0,0
                             break
-            if var['dir_check'][1] and var['dir_check'][0] == button_name:
+            if var['dir_check'][1]:
                 if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
                     dx += event.rel[0] ; dy += event.rel[1]
                     # inversion of mirrored side
                     if   dx >  30:
-                        var['animation'] = [[button_name,'r'], 0]
+                        var['animation'] = [[button_name,'r'], 0,'']
                     elif dy < -30:
                         inv_let = 'd' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'u'
-                        var['animation'] = [[button_name, inv_let], 0]
+                        var['animation'] = [[button_name, inv_let], 0,'']
                     elif dx < -30:
-                        var['animation'] = [[button_name,'l'], 0]
+                        var['animation'] = [[button_name,'l'], 0,'']
                     elif dy >  30:
                         inv_let = 'u' if button_name[-2] in ['b', 'r'] and button_name[-1] not in ['d', 'u'] else 'd'
-                        var['animation'] = [[button_name, inv_let], 0]
+                        var['animation'] = [[button_name, inv_let], 0,'']
                 var['out_text'] = var['animation'] # for visualization
 
     """ OUTPUT """
