@@ -2,28 +2,34 @@ import pygame
 import math
 import random
 import sys, os
-
+import copy
 
 var = {'active' : True, 'analytic' : True, 'animation' : [[],0,''], 'solid' : True,
        'dir_check' : '', 'out_text' : '','shuffle' : '', 'mode' : 'menu', 'mode_anim' : ['',0]} # globals
-all_objects = []
-all_cameras = []
-points = {}
-colors = {
-    'red'   : [(255,   0,   0)],
-    'green' : [(  0, 255,   0)],
-    'blue'  : [(  0,   0, 255)],
-    'yellow': [(210, 210,   0)],
-    'orange': [(255, 165,   0)],
-    'white' : [(255, 255, 255)],
-    'gray'  : [( 50,  50,  50)],}
-for pol_color in colors:
-    colors[pol_color].append(
-        (int(colors[pol_color][0][0] / 1.2),int(colors[pol_color][0][1] / 1.2),int(colors[pol_color][0][2] / 1.2)))
+
 cord_to_index = {'x' : (1,2), 'y' : (0,2), 'z' : (0,1)}
 blocks_x = ['112', '122', '132', '232', '332', '322', '312', '212', '222']
 blocks_y = ['121', '122', '123', '223', '323', '322', '321', '221', '222']
 blocks_z = ['211', '221', '231', '232', '233', '223', '213', '212', '222']
+
+all_colors = ({
+        'red': [(153, 0, 0)],
+        'green': [(0, 102, 0)],
+        'blue': [(0, 76, 153)],
+        'yellow': [(204, 204, 0)],
+        'orange': [(204, 102, 0)],
+        'white': [(255, 229, 204)],
+        'gray': [(50, 50, 50)], },
+    {
+        'red': [(255, 0, 0)],
+        'green': [(0, 255, 0)],
+        'blue': [(0, 0, 255)],
+        'yellow': [(210, 210, 0)],
+        'orange': [(255, 165, 0)],
+        'white': [(255, 255, 255)],
+        'gray': [(50, 50, 50)], })
+
+
 
 """ Textures """
 def resource_path(relative_path):
@@ -46,15 +52,15 @@ def rubik_rotation(rotation_cord,_blocks,_index,_cof):
         else:
             _add_ang = 10 if 10 <= var['animation'][1] <= 70 else 2
         for _obj_location in _blocks:
-            rubik[_obj_location].rotate(_index, _add_ang * _cof)
+            world.rubik[_obj_location].rotate(_index, _add_ang * _cof)
         var['animation'][1] += _add_ang
     else:
         # rewriting position
         _blocks.pop(-1)
         off_blocks = _blocks[2:] + _blocks[:2] if rotation_cord[1] in ['d', 'r'] else _blocks[-2:] + _blocks[:-2]
         place_save = []
-        for pl in _blocks:  place_save.append(rubik[pl])
-        for pl in off_blocks:  rubik[pl] = place_save.pop(0)
+        for pl in _blocks:  place_save.append(world.rubik[pl])
+        for pl in off_blocks:  world.rubik[pl] = place_save.pop(0)
         var['animation'] = [[], 0, '']
 
 def rubik_calculation():
@@ -111,9 +117,9 @@ def create_cube(_obj_name,points_offset, color_input):
     color_output = ['gray','gray','gray','gray','gray','gray']
     for _num in color_input:
         color_output[_num -1] = cube_color[_num-1]
-    colored = ((('1', '2', '3', '4'), colors[color_output[0]]), (('5', '6', '7', '8'), colors[color_output[1]]),
-               (('3', '4', '8', '7'), colors[color_output[2]]), (('1', '2', '6', '5'), colors[color_output[3]]),
-               (('1', '4', '8', '5'), colors[color_output[4]]), (('2', '3', '7', '6'), colors[color_output[5]]))
+    colored = ((('1', '2', '3', '4'), world.colors[color_output[0]]), (('5', '6', '7', '8'), world.colors[color_output[1]]),
+               (('3', '4', '8', '7'), world.colors[color_output[2]]), (('1', '2', '6', '5'), world.colors[color_output[3]]),
+               (('1', '4', '8', '5'), world.colors[color_output[4]]), (('2', '3', '7', '6'), world.colors[color_output[5]]))
     cube_points = {
         '1': [ 33.0, 33.0, 33.0], '2': [ 33.0,-33.0, 33.0],
         '3': [-33.0,-33.0, 33.0], '4': [-33.0, 33.0, 33.0],
@@ -146,16 +152,54 @@ def create_button(_obj_name,points_offset, direction):
         _points[_point][index[2]] += 100 * cof
     return [_obj_name,colored,_points]
 
+""" World Class """
+class World:
+    def __init__(self):
+        # colors
+        self.colors = all_colors[0]
+        for pol_color in self.colors:
+            self.colors[pol_color].append(
+                (int(self.colors[pol_color][0][0] / 1.2), int(self.colors[pol_color][0][1] / 1.2),
+                 int(self.colors[pol_color][0][2] / 1.2)))
+        all_worlds.append(self)
+        self.all_objects = []
+        self.all_cameras = []
+        self.points = {}
+        self.rubik = {}
+        self.points_copy = {}
+        self.rubik_copy = {}
+
+
+    def save_data(self):
+        self.rubik_copy = copy.deepcopy(self.rubik)
+        self.points_copy = copy.deepcopy(self.points)
+
+    def reset(self):
+        for camera_ in self.all_cameras:
+            camera_.reset()
+        for object_ in self.all_cameras:
+            object_.reset()
+        self.rubik = copy.deepcopy(self.rubik_copy)
+        self.points = copy.deepcopy(self.points_copy)
+        var['active'] = True
+
+    def color_change(self):
+        pass
+
 
 """ Camera Class """
 class CameraChanger:
     def __init__(self,name,rotation=(0,0)):
-        all_cameras.append(self)
+        world.all_cameras.append(self)
         self.name = name
         self.init_rotation = rotation
         self.rotation = [rotation[0],rotation[1]]
         self.size = 1
         self.order = []
+
+    def reset(self):
+        self.rotation = list(self.init_rotation)
+        self.size = 1
 
     def rotate(self,index, _add_ang):
         self.rotation[index] += _add_ang
@@ -194,18 +238,18 @@ class CameraChanger:
 
 
         self.order = []
-        for _obj in all_objects:
+        for _obj in world.all_objects:
             # creating colored polygons from points and sorting them
             polygons = {} ; pol_order = [] ; obj_depth = 0
             for polygon, color in _obj.polygons:
                 polygons[polygon] = {'render_points': [], 'depth': 0}
                 for _point in polygon:
                     # camera y rotation offset
-                    radius = math.hypot(points[_obj.name][_point][0], points[_obj.name][_point][2])
+                    radius = math.hypot(world.points[_obj.name][_point][0], world.points[_obj.name][_point][2])
                     angle = angle_calc(radius,
-                                       points[_obj.name][_point][0], points[_obj.name][_point][2]) - self.rotation[1]
+                                world.points[_obj.name][_point][0], world.points[_obj.name][_point][2]) - self.rotation[1]
                     cord_x = round(radius * math.sin(math.radians(angle)), 2)
-                    cord_y = points[_obj.name][_point][1]
+                    cord_y = world.points[_obj.name][_point][1]
                     cord_z = round(radius * math.cos(math.radians(angle)), 2)
                     # camera x rotation offset and final camera cord output
                     radius = math.hypot(cord_y, cord_z)
@@ -245,32 +289,42 @@ class CameraChanger:
 """ Object Class """
 class ObjectChanger:
     def __init__(self, obj_name,polygons,_points):
-        all_objects.append(self)
-        points[obj_name] = _points
-        self.point_dict = points[obj_name]
+        world.all_objects.append(self)
         self.name = obj_name
+        world.points[self.name] = _points
         self.rotation = [0, 0, 0]
         self.size = 1
         self.polygons = polygons
 
+
+    def reset(self):
+        self.rotation = [0, 0, 0]
+
     def rotate(self,index, _add_ang):
-        for _point in points[self.name]:
-            radius = math.hypot(self.point_dict[_point][index[0]], self.point_dict[_point][index[1]])
-            angle = angle_calc(radius, self.point_dict[_point][index[0]], self.point_dict[_point][index[1]]) - _add_ang
-            self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
-            self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
+        for _point in world.points[self.name]:
+            radius = math.hypot(world.points[self.name][_point][index[0]],
+                                world.points[self.name][_point][index[1]])
+            angle = angle_calc(radius, world.points[self.name][_point][index[0]],
+                               world.points[self.name][_point][index[1]]) - _add_ang
+            world.points[self.name][_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
+            world.points[self.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
         self.rotation[1] += _add_ang
         var['active'] = True
 
     def resize(self,add_size):
-        for _point in self.point_dict:
+        for _point in world.points[self.name]:
             for index in [0,1,2]:
-                self.point_dict[_point][index] *= round(1 + add_size / 100,2)
+                world.points[self.name][_point][index] *= round(1 + add_size / 100,2)
         self.size *= 1 + add_size / 100
         var['active'] = True
 
 
 """Objects"""
+# world
+all_worlds = []
+world_1 = World()
+world = all_worlds[0]
+
 # corners
 corner_lfu = ObjectChanger(*create_cube('corner_lfu',(-66, 66, 66), (1,3,5)))
 corner_lfd = ObjectChanger(*create_cube('corner_lfd',(-66,-66, 66), (1,3,6)))
@@ -317,7 +371,7 @@ for num, side in enumerate(['f','r','b','l']):
     buttons[f'{side}{let[2]}'] = ObjectChanger(*create_button(f'button_{side}{let[2]}',(  0,-66),side))
     buttons[f'{side}{let[3]}'] = ObjectChanger(*create_button(f'button_{side}{let[3]}',( 66,  0),side))
 
-rubik = {# first layer (front)
+world.rubik = {# first layer (front)
         '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
         '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
         '131' : corner_lfd, '132' : cut_fd, '133' : corner_rfd,
@@ -333,7 +387,7 @@ rubik = {# first layer (front)
 # cameras
 camera1 = CameraChanger('Camera 1',(20,45))
 camera2 = CameraChanger('Camera 2',(20,45))
-camera = all_cameras[0]
+camera = world.all_cameras[0]
 
 """ PyGame """
 
@@ -362,7 +416,7 @@ var['mode'] = 'menu'
 center = [550,540]
 camera.size = 0.8
 mouse_cords = center
-
+world.save_data()
 
 """ Main Cycle """
 running = True
@@ -372,7 +426,7 @@ while running:
     if var['shuffle']:
         if not var['animation'][0]:
             while True:
-                button1 = random.choice(all_objects)
+                button1 = random.choice(world.all_objects)
                 if button1.name[:6] == 'button':
                     break
             letter1 = random.choice(['l', 'r', 'u', 'd'])
@@ -447,6 +501,9 @@ while running:
             var['analytic'] = True if var['analytic'] == False else False
             sounds['select'].play()
 
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+            world.reset()
+
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F4:
             var['solid'] = True if var['solid'] == False else False
             sounds['select'].play()
@@ -488,8 +545,8 @@ while running:
 
             # camera change
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_k:
-                _index = all_cameras.index(camera)
-                camera = all_cameras[_index + 1] if _index < len(all_cameras) - 1 else all_cameras[0]
+                _index = world.all_cameras.index(camera)
+                camera = world.all_cameras[_index + 1] if _index < len(world.all_cameras) - 1 else world.all_cameras[0]
                 var['active'] = True
 
             # informating if any button was activated
@@ -556,7 +613,7 @@ while running:
         f'State : {'active' if var['active'] else 'passive'}',
         f'last rubik rotation : {var['out_text']}'
         f'' ,
-        f'Cameras : {[i.name for i in all_cameras]}',
+        f'Cameras : {[i.name for i in world.all_cameras]}',
         f'Camera : {camera.name}',
         f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
         f'Size : {camera.size:.2f}',
