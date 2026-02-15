@@ -10,13 +10,16 @@ all_objects = []
 all_cameras = []
 points = {}
 colors = {
-    'red'   : (255,   0,   0),
-    'green' : (  0, 255,   0),
-    'blue'  : (  0,   0, 255),
-    'yellow': (210, 210,   0),
-    'orange': (255, 165,   0),
-    'white' : (255, 255, 255),
-    'gray'  : ( 50,  50,  50),}
+    'red'   : [(255,   0,   0)],
+    'green' : [(  0, 255,   0)],
+    'blue'  : [(  0,   0, 255)],
+    'yellow': [(210, 210,   0)],
+    'orange': [(255, 165,   0)],
+    'white' : [(255, 255, 255)],
+    'gray'  : [( 50,  50,  50)],}
+for pol_color in colors:
+    colors[pol_color].append(
+        (int(colors[pol_color][0][0] / 1.2),int(colors[pol_color][0][1] / 1.2),int(colors[pol_color][0][2] / 1.2)))
 cord_to_index = {'x' : (1,2), 'y' : (0,2), 'z' : (0,1)}
 blocks_x = ['112', '122', '132', '232', '332', '322', '312', '212', '222']
 blocks_y = ['121', '122', '123', '223', '323', '322', '321', '221', '222']
@@ -88,6 +91,9 @@ def rubik_calculation():
     else:
         var['animation'] = [[], 0, '']
         return
+    # rotation sound
+    if var['mode'] == 'game':
+        sounds['click'].play()
     # if action was recognized
     new_blocks = blocks_.copy()
     if coef:
@@ -98,7 +104,6 @@ def rubik_calculation():
     i_index = cord_to_index[var['animation'][2][0]]
     _cof = -1 if var['animation'][2][1] in ['u', 'r'] else 1
     var['animation'].append([new_blocks, i_index, _cof])
-
 
 """ Objects Creation Functions """
 def create_cube(_obj_name,points_offset, color_input):
@@ -121,7 +126,7 @@ def create_cube(_obj_name,points_offset, color_input):
     return [_obj_name,colored,cube_points]
 
 def create_button(_obj_name,points_offset, direction):
-    colored = ((('1', '2', '3', '4'), (255,255,255)),)
+    colored = ((('1', '2', '3', '4'), ((255,255,255),(255,255,255))),)
     cof = -1 if direction in ['b','l','d'] else 1
     if   direction in ['f','b']:
         _points = {'1': [ 33.0, 33.0,  0], '2': [ 33.0,-33.0,   0],
@@ -146,16 +151,11 @@ def create_button(_obj_name,points_offset, direction):
 class CameraChanger:
     def __init__(self,name,rotation=(0,0)):
         all_cameras.append(self)
-        self.init_rotation = rotation
         self.name = name
+        self.init_rotation = rotation
         self.rotation = [rotation[0],rotation[1]]
-        self.output = {}
         self.size = 1
-        self.object_order = []
-        for _obj in points:
-            self.output[_obj] = {}
-            for _point in points[_obj]:
-                self.output[_obj][_point] = [0, 0, 0]
+        self.order = []
 
     def rotate(self,index, _add_ang):
         self.rotation[index] += _add_ang
@@ -171,6 +171,7 @@ class CameraChanger:
 
     def render(self):
         """calculating points position on the screen"""
+
         def calculate_color(_depth, _colors):
             """calculate color based on z position of an object"""
             f_colors = []
@@ -182,65 +183,63 @@ class CameraChanger:
             for _color in _colors:
                 f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
             return f_colors
+
         def sort(_order, condition, content):
             """sort object or polygon based on z position"""
             if _order:
                 for _num in range(len(_order)):
                     if condition > _order[_num][1]:
-                        _order.insert(_num, content)
-                        return
-            _order.append(content)
-            return
+                        return _order.insert(_num, content)
+            return _order.append(content)
+
+
+        self.order = []
         for _obj in all_objects:
-            for _point in points[_obj.name]:
-                # camera y rotation offset
-                index = (0,2,1)
-                radius = math.hypot(points[_obj.name][_point][index[0]] + _obj.pos[index[0]],
-                                    points[_obj.name][_point][index[1]] + _obj.pos[index[1]])
-                angle = angle_calc(radius, points[_obj.name][_point][index[0]] + _obj.pos[index[0]],
-                                   points[_obj.name][_point][index[1]] + _obj.pos[index[1]]) - self.rotation[index[2]]
-                cord_x = points[_obj.name][_point][index[2]] + _obj.pos[index[2]]
-                cord_y = round(radius * math.sin(math.radians(angle)), 2)
-                cord_z = round(radius * math.cos(math.radians(angle)), 2)
-                # camera x rotation offset and final camera cord output
-                index = (1, 2, 0)
-                radius = math.hypot(cord_x, cord_z)
-                angle = angle_calc(radius, cord_x, cord_z) - self.rotation[index[2]]
-                self.output[_obj.name][_point][index[0]] = round(radius * math.sin(math.radians(angle)) * self.size, 2)
-                self.output[_obj.name][_point][index[2]] = round(cord_y * self.size,2)
-                self.output[_obj.name][_point][index[1]] = round(radius * math.cos(math.radians(angle)) * self.size, 2)
-        # creating colored polygons from points and sorting them
-        self.object_order = []
-        for _obj in all_objects:
-            polygons = {} ; order = []
-            polygon_depth = 0
+            # creating colored polygons from points and sorting them
+            polygons = {} ; pol_order = [] ; obj_depth = 0
             for polygon, color in _obj.polygons:
-                polygons[polygon] = {'render_points': [], 'depth_ev': 0}
+                polygons[polygon] = {'render_points': [], 'depth': 0}
                 for _point in polygon:
-                    # cord convertion to camera output cords
-                    mult = round((((camera.output[_obj.name][_point][2] + 125) / 375) + 2), 2)
-                    polygons[polygon]['render_points'].append(
-                        (round(center[0] + (camera.output[_obj.name][_point][0]) * mult, 2),
-                         round(center[1] - (camera.output[_obj.name][_point][1]) * mult, 2)))
-                    # saving polygon depth
-                    polygons[polygon]['depth_ev'] += int(camera.output[_obj.name][_point][2])
+                    # camera y rotation offset
+                    radius = math.hypot(points[_obj.name][_point][0], points[_obj.name][_point][2])
+                    angle = angle_calc(radius,
+                                       points[_obj.name][_point][0], points[_obj.name][_point][2]) - self.rotation[1]
+                    cord_x = round(radius * math.sin(math.radians(angle)), 2)
+                    cord_y = points[_obj.name][_point][1]
+                    cord_z = round(radius * math.cos(math.radians(angle)), 2)
+                    # camera x rotation offset and final camera cord output
+                    radius = math.hypot(cord_y, cord_z)
+                    angle = angle_calc(radius, cord_y, cord_z) - self.rotation[0]
+                    cord_x = round(cord_x * self.size, 2)
+                    cord_y = round(radius * math.sin(math.radians(angle)) * self.size, 2)
+                    cord_z = round(radius * math.cos(math.radians(angle)) * self.size, 2)
+
+                    # saving point output cords
+                    mult = round(((( cord_z + 125) / 375) + 2), 2)
+                    polygons[polygon]['render_points'].append((int(center[0] + cord_x * mult),
+                                                               int(center[1] - cord_y * mult)))
+                    # saving point depth
+                    polygons[polygon]['depth'] += cord_z
+                    if -50 < cord_y < 50 and -50 < cord_x < 50:
+                        polygons[polygon]['depth'] += 6
+
                 # saving object depth
-                polygon_depth += polygons[polygon]['depth_ev']
+                obj_depth += polygons[polygon]['depth']
                 # color of the polygon calculation
-                final_color = calculate_color(polygons[polygon]['depth_ev'] / 4, color)
-                # in "order" sorting all polygons of an object
-                sort(order, polygons[polygon]['depth_ev'], (polygon, polygons[polygon]['depth_ev'], tuple(final_color)))
-            # in "object_order" sorting object itself
-            sort(self.object_order, polygon_depth, (_obj, polygon_depth, order[::-1], polygons))
+                final_color = (calculate_color(polygons[polygon]['depth'] / 4, color[0]),
+                               calculate_color(polygons[polygon]['depth'] / 4, color[1]))
+                # in "pol_order" sorting all polygons of an object
+                sort(pol_order, polygons[polygon]['depth'], (polygon, polygons[polygon]['depth'], final_color))
+            # in "order" sorting object itself
+            sort(self.order, obj_depth, (_obj, obj_depth, pol_order[::-1], polygons))
 
     def render_polygon(self):
-        for obj_info in self.object_order[::-1]:
+        for obj_info in self.order[::-1]:
             if obj_info[0].name[:6] != 'button':
                 for _polygon, _depth, _color in obj_info[2]:
                     if var['solid']:
-                        pygame.draw.polygon(screen, _color, obj_info[3][_polygon]['render_points'])
-                    line_color = (int(_color[0] / 1.2),int(_color[1] / 1.2),int(_color[2] / 1.2))
-                    pygame.draw.polygon(screen, line_color, obj_info[3][_polygon]['render_points'], 3)
+                        pygame.draw.polygon(screen, _color[0], obj_info[3][_polygon]['render_points'])
+                    pygame.draw.polygon(screen, _color[1], obj_info[3][_polygon]['render_points'], 3)
 
 
 """ Object Class """
@@ -250,7 +249,6 @@ class ObjectChanger:
         points[obj_name] = _points
         self.point_dict = points[obj_name]
         self.name = obj_name
-        self.pos = [0,0,0]
         self.rotation = [0, 0, 0]
         self.size = 1
         self.polygons = polygons
@@ -262,10 +260,6 @@ class ObjectChanger:
             self.point_dict[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
             self.point_dict[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
         self.rotation[1] += _add_ang
-        var['active'] = True
-
-    def move(self, index, add_move):
-        self.pos[index] += add_move
         var['active'] = True
 
     def resize(self,add_size):
@@ -350,14 +344,19 @@ background_color = (55, 55, 55)
 screen.fill(background_color)
 
 textures = {
-    'background' : pygame.image.load(resource_path("textures/background.png")).convert_alpha(),
     'fade' : pygame.image.load(resource_path("textures/fade.png")).convert_alpha(),
-    'cosmos' : pygame.image.load(resource_path("textures/kosmos3.jpg")).convert_alpha(),
+    'cosmos' : pygame.image.load(resource_path("textures/cosmos.jpg")).convert_alpha(),
     'black' : pygame.image.load(resource_path("textures/black.png")).convert_alpha(),
 }
 textures['fade'] = pygame.transform.scale(textures['fade'], (1920, 1080))
 textures['cosmos'] = pygame.transform.scale(textures['cosmos'], (1920, 1080))
 textures['black'].set_alpha(60)
+sounds = {
+    'click' : pygame.mixer.Sound("textures/click.wav"),
+    'select' : pygame.mixer.Sound("textures/select.wav"),
+}
+pygame.mixer.music.load("textures/cosmo.mp3")
+pygame.mixer.music.play(-1)
 
 var['mode'] = 'menu'
 center = [550,540]
@@ -446,9 +445,11 @@ while running:
         # analytic mode
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
             var['analytic'] = True if var['analytic'] == False else False
+            sounds['select'].play()
 
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F4:
             var['solid'] = True if var['solid'] == False else False
+            sounds['select'].play()
 
         # game mode
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -461,6 +462,7 @@ while running:
                 var['mode'] = 'menu'
                 center = [550, 540]
                 camera.size = 0.8
+            sounds['select'].play()
 
         if var['mode'] == 'game':
             # camera sizing with mouse
@@ -494,7 +496,7 @@ while running:
             elif not var['animation'][0]:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not mouse_keys[2]:
                     new_list = []
-                    for _object in camera.object_order:
+                    for _object in camera.order:
                         if _object[0].name[:6] == 'button' and _object[1] > 0:
                             for point in list(_object[3][('1', '2', '3', '4')]['render_points']):
                                 new_list.append((point[0], point[1]))
