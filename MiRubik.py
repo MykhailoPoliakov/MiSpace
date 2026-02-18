@@ -4,9 +4,12 @@ import random
 import sys, os
 import copy
 
-var = {'active' : True, 'analytic' : True, 'animation' : [[],0,''], 'solid' : True,
-       'dir_check' : '', 'out_text' : '','shuffle' : '', 'mode' : 'menu', 'mode_anim' : ['',0]} # globals
+# globals
+var = {'active' : True, 'analytic' : False, 'animation' : [[],0,''], 'solid' : True,
+       'mouse_lock' : '', 'silent_mode' : False,
+       'dir_check' : '', 'out_text' : '','shuffle' : '', 'mode' : 'menu', 'mode_anim' : ['',0]}
 
+anim = {'menu' : 0}
 cord_to_index = {'x' : (1,2), 'y' : (0,2), 'z' : (0,1)}
 blocks_x = ['112', '122', '132', '232', '332', '322', '312', '212', '222']
 blocks_y = ['121', '122', '123', '223', '323', '322', '321', '221', '222']
@@ -29,6 +32,12 @@ all_colors = ({
         'white': [(255, 255, 255)],
         'gray': [(50, 50, 50)], })
 
+for group_colors in all_colors:
+    for pol_color in group_colors:
+        group_colors[pol_color].append(
+            (int(group_colors[pol_color][0][0] / 1.2), int(group_colors[pol_color][0][1] / 1.2),
+             int(group_colors[pol_color][0][2] / 1.2)))
+
 
 
 """ Textures """
@@ -42,6 +51,16 @@ def angle_calc(_radius, _cord_0, _cord_1):
     _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
     return 360 - _angle if _cord_0 < 0 else _angle
 
+def basic_animation(lock_word, if_const, if_plus, else_minus):
+    if var['mouse_lock'] == lock_word:
+        if anim[lock_word] < if_const:
+            anim[lock_word] += if_plus
+    elif anim[lock_word] > 0:
+        anim[lock_word] -= else_minus
+
+def sound(track):
+    if not var['silent_mode']:
+        sounds[track].play()
 
 """ Rubik Rotation Functions """
 def rubik_rotation(rotation_cord,_blocks,_index,_cof):
@@ -99,7 +118,7 @@ def rubik_calculation():
         return
     # rotation sound
     if var['mode'] == 'game':
-        sounds['click'].play()
+        sound('click')
     # if action was recognized
     new_blocks = blocks_.copy()
     if coef:
@@ -155,20 +174,14 @@ def create_button(_obj_name,points_offset, direction):
 """ World Class """
 class World:
     def __init__(self):
-        # colors
-        self.colors = all_colors[0]
-        for pol_color in self.colors:
-            self.colors[pol_color].append(
-                (int(self.colors[pol_color][0][0] / 1.2), int(self.colors[pol_color][0][1] / 1.2),
-                 int(self.colors[pol_color][0][2] / 1.2)))
         all_worlds.append(self)
+        self.colors = all_colors[0]
         self.all_objects = []
         self.all_cameras = []
         self.points = {}
         self.rubik = {}
-        self.points_copy = {}
-        self.rubik_copy = {}
-
+        self.points_copy = None
+        self.rubik_copy = None
 
     def save_data(self):
         self.rubik_copy = copy.deepcopy(self.rubik)
@@ -182,9 +195,8 @@ class World:
         self.rubik = copy.deepcopy(self.rubik_copy)
         self.points = copy.deepcopy(self.points_copy)
         var['active'] = True
-
-    def color_change(self):
-        pass
+        for animation in anim:
+            anim[animation] = 0
 
 
 """ Camera Class """
@@ -398,19 +410,28 @@ background_color = (55, 55, 55)
 screen.fill(background_color)
 
 textures = {
-    'fade' : pygame.image.load(resource_path("textures/fade.png")).convert_alpha(),
-    'cosmos' : pygame.image.load(resource_path("textures/cosmos.jpg")).convert_alpha(),
-    'black' : pygame.image.load(resource_path("textures/black.png")).convert_alpha(),
+    'fade'         : pygame.image.load(resource_path("textures/fade.png")).convert_alpha(),
+    'cosmos'       : pygame.image.load(resource_path("textures/cosmos.jpg")).convert_alpha(),
+    'black'        : pygame.image.load(resource_path("textures/black.png")).convert_alpha(),
+    'menu'         : pygame.image.load(resource_path("textures/menu.png")).convert_alpha(),
+    'left_button'  : pygame.image.load(resource_path("textures/left_button.png")).convert_alpha(),
+    'right_button' : pygame.image.load(resource_path("textures/right_button.png")).convert_alpha(),
+    'sound_on'     : pygame.image.load(resource_path("textures/sound_on.png")).convert_alpha(),
 }
 textures['fade'] = pygame.transform.scale(textures['fade'], (1920, 1080))
-textures['cosmos'] = pygame.transform.scale(textures['cosmos'], (1920, 1080))
 textures['black'].set_alpha(60)
 sounds = {
-    'click' : pygame.mixer.Sound("textures/click.wav"),
+    'click'  : pygame.mixer.Sound("textures/click.wav"),
     'select' : pygame.mixer.Sound("textures/select.wav"),
 }
 pygame.mixer.music.load("textures/cosmo.mp3")
 pygame.mixer.music.play(-1)
+
+clicks = {
+    'menu' : pygame.Rect(0, 0, 1920, 130),
+    'menu_exit' : pygame.Rect(990, 0, 110, 100),
+    'menu_sound' : pygame.Rect(830, 0, 110, 100),
+}
 
 var['mode'] = 'menu'
 center = [550,540]
@@ -488,8 +509,11 @@ while running:
     """ INPUT """
     keys = pygame.key.get_pressed()
     mouse_keys = pygame.mouse.get_pressed()
+    mouse_pos = pygame.mouse.get_pos()
 
     for event in pygame.event.get():
+        var['mouse_lock'] = ''
+
         # ways to exit
         if event.type == pygame.QUIT:
             running = False
@@ -499,14 +523,14 @@ while running:
         # analytic mode
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
             var['analytic'] = True if var['analytic'] == False else False
-            sounds['select'].play()
+            sound('select')
 
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
             world.reset()
 
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_F4:
             var['solid'] = True if var['solid'] == False else False
-            sounds['select'].play()
+            sound('select')
 
         # game mode
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -516,12 +540,35 @@ while running:
                 var['shuffle'] = 'fast'
                 var['active'] = True
             else:
+                world.reset()
                 var['mode'] = 'menu'
                 center = [550, 540]
                 camera.size = 0.8
-            sounds['select'].play()
+            sound('select')
+
 
         if var['mode'] == 'game':
+            if clicks['menu'].collidepoint(mouse_pos) and not (event.type == pygame.MOUSEMOTION and mouse_keys[2]):
+                var['mouse_lock'] = 'menu'
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and clicks['menu_exit'].collidepoint(mouse_pos):
+                world.reset()
+                var['mode'] = 'menu'
+                center = [550, 540]
+                camera.size = 0.8
+                sound('select')
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and clicks['menu_sound'].collidepoint(mouse_pos):
+                if var['silent_mode'] == False:
+                    print('1')
+                    var['silent_mode'] = True
+                    pygame.mixer.pause()
+                    pygame.mixer.music.pause()
+                else:
+                    var['silent_mode'] = False
+                    pygame.mixer.unpause()
+                    pygame.mixer.music.unpause()
+                sound('select')
+
+
             # camera sizing with mouse
             if event.type == pygame.MOUSEWHEEL:
                 if (camera.size < 2 or event.y < 0) and (camera.size > 0.3 or event.y > 0):
@@ -592,6 +639,7 @@ while running:
     # objects output render
     camera.render_polygon()
 
+    # start menu
     if var['mode'] == 'menu':
         font = pygame.font.Font(None, 90)
         text = font.render(f"Play", True, (255, 255, 255))
@@ -600,8 +648,23 @@ while running:
         camera.rotate(0, 1)
         screen.blit(textures['black'], (0, 0))
 
+    # start animation
     if var['mode'] == 'start':
         screen.blit(textures['black'], (0, 0))
+
+    # in-game animation
+    if var['mode'] == 'game':
+        basic_animation('menu', 90, 9, 3)
+        # upper menu output
+        if anim['menu'] > 0:
+            cords = (0, -90 + anim['menu'])
+            screen.blit(textures['menu'], cords)
+            if not var['silent_mode']:
+                screen.blit(textures['sound_on'], cords)
+            if clicks['menu_sound'].collidepoint(mouse_pos):
+                screen.blit(textures['left_button'], cords)
+            if clicks['menu_exit'].collidepoint(mouse_pos):
+                screen.blit(textures['right_button'], cords)
 
     # in-game info output
     if var['analytic']:
@@ -617,7 +680,8 @@ while running:
         f'Camera : {camera.name}',
         f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
         f'Size : {camera.size:.2f}',
-        f'Mode : {var["mode"]}',]
+        f'Mode : {var["mode"]}',
+        f'{anim['menu']} {var['mouse_lock']}']
 
 
         for num, message in enumerate(messages):
