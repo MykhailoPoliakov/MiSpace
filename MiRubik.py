@@ -97,7 +97,8 @@ class Rubik:
     def animation_reset(self):
         self.animation = [[], 0, '']
 
-    def rotation_calculation(self):
+    def calculate_rotation(self):
+        """ calculates rotation, changes only self.animation"""
         coef = ()
         # side rotation
         if self.animation[0][0][-1] in ['u', 'd'] and self.animation[0][-1] in ['l', 'r']:
@@ -114,7 +115,7 @@ class Rubik:
                 coef = (1, ('l', 'r'))
                 blocks_ = blocks_x
             else:
-                self.animation = [[], 0, '']
+                self.animation_reset()
                 return
         # left and right side vertical rotation and center
         elif self.animation[0][0][-2] in ['l', 'r']:
@@ -126,10 +127,10 @@ class Rubik:
                 coef = (100, ('l', 'r'))
                 blocks_ = blocks_z
             else:
-                self.animation = [[], 0, '']
+                self.animation_reset()
                 return
         else:
-            self.animation = [[], 0, '']
+            self.animation_reset()
             return
         # if action was recognized
         new_blocks = blocks_.copy()
@@ -142,7 +143,7 @@ class Rubik:
         cof = -1 if self.animation[2][1] in ['u', 'r'] else 1
         self.animation.append([new_blocks, index, cof])
 
-    def rotation(self):
+    def rotate(self):
         _blocks, index, cof = self.animation[3]
         # rotation animation
         if self.animation[1] < 90:
@@ -289,7 +290,6 @@ class World:
     def __init__(self):
         self.colors = all_colors[0]
         self.all_objects = []
-        self.all_cameras = []
         self.rubik = {}
         self.rubik_copy = None
         self.solved = False
@@ -298,8 +298,7 @@ class World:
         self.rubik_copy = copy.deepcopy(self.rubik)
 
     def reset(self):
-        for camera_ in self.all_cameras:
-            camera_.reset()
+        camera.reset()
         for object_ in self.all_objects:
             object_.reset()
         self.rubik = copy.deepcopy(self.rubik_copy)
@@ -316,7 +315,6 @@ class CameraChanger:
     """ Calculating all points` position on the screen and rendering objects in order """
 
     def __init__(self,name,rotation=(0,0)):
-        world.all_cameras.append(self)
         # main properties
         self.name = name
         self.rotation = list(rotation)
@@ -424,9 +422,7 @@ class CameraChanger:
 
 
 # cameras
-camera1 = CameraChanger('Camera 1',(20,45))
-camera2 = CameraChanger('Camera 2',(20,45))
-camera = world.all_cameras[0]
+camera = CameraChanger('Camera',(20,45))
 
 
 """ Object Class """
@@ -643,10 +639,10 @@ while running:
     if rubik.animation[0]:
         # rotation animation
         if not rubik.animation[2]:
-            rubik.rotation_calculation()
+            rubik.calculate_rotation()
         # rotation
         if rubik.animation[2]:
-            rubik.rotation()
+            rubik.rotate()
 
 
     # start animation
@@ -797,12 +793,6 @@ while running:
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_b:
                     var['shuffle'] = 'fast' if var['shuffle'] != 'fast' else ''
 
-                # camera change (for testing)
-                elif event.type == pygame.KEYDOWN and event.key == pygame.K_k:
-                    _index = world.all_cameras.index(camera)
-                    camera = world.all_cameras[_index + 1] if _index < len(world.all_cameras) - 1 else world.all_cameras[0]
-                    var['active'] = True
-
                 # informating if any button was activated
                 elif not rubik.animation[0]:
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not mouse_keys[2]:
@@ -937,7 +927,6 @@ while running:
             f'Fps : {int(clock.get_fps())}',
             f'State : {'active' if var['active'] else 'passive'}',
             f'last rubik rotation : {var['out_text']}',
-            f'Cameras : {[i.name for i in world.all_cameras]}',
             f'Camera : {camera.name}',
             f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
             f'Size : {camera.size:.2f}',
