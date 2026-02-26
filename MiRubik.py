@@ -5,10 +5,11 @@ import sys, os
 import copy
 # class import
 from json_class import Json
+from timer_class import Timer
 
 # globals
-var = {'active' : True, 'analytic' : False, 'solid' : True,
-       'mouse_lock' : '', 'remember' : '',
+var = {'analytic' : False, 'solid' : True,
+       'mouse_lock' : '', 'flag' : '',
        'motion_start' : '','shuffle' : '', 'mode' : '', 'mode_anim' : ['',0]}
 
 anim = {'menu' : 0, 'win_fade' : 0, 'restart' : 0,}
@@ -74,8 +75,7 @@ class Rubik:
             'rotation_angle': 0,
             'xyz_direction': '',
             'rotation_coef': (),
-            'rotation_blocks': [],
-        }
+            'rotation_blocks': [],}
         self.animation_copy =  self.animation.copy()
         # colors
         self.colors = self.__colors
@@ -83,6 +83,83 @@ class Rubik:
 
     def reset(self):
         pass
+
+    def twist(self) -> None:
+        # rotation animation
+        if not rubik.animation['rotation_coef']:
+            self.__calculate_rotation()
+        # rotation
+        if rubik.animation['rotation_coef']:
+            self.__make_rotation()
+
+    def __calculate_rotation(self):
+        """ calculates rotation, changes only self.animation"""
+        coef = ()
+        # side rotation
+        if self.animation['button_name'][-1] in ['u', 'd'] and self.animation['button_direction'] in ['l', 'r']:
+            xyz_direction = 'y'
+            coef = (10, ('u', 'd'))
+            blocks_ = self.blocks_y
+        # front and back side vertical rotation and center
+        elif self.animation['button_name'][-2] in ['f', 'b']:
+            if self.animation['button_name'][-1] == 'm':
+                xyz_direction = f'{'x' if self.animation['button_direction'] in ['u', 'd'] else 'y'}'
+                blocks_ = self.blocks_x if self.animation['button_direction'] in ['u', 'd'] else self.blocks_y
+            elif self.animation['button_name'][-1] in ['l', 'r'] and self.animation['button_direction'] in ['u', 'd']:
+                xyz_direction = 'x'
+                coef = (1, ('l', 'r'))
+                blocks_ = self.blocks_x
+            else:
+                self.__animation_reset()
+                return
+        # left and right side vertical rotation and center
+        elif self.animation['button_name'][-2] in ['l', 'r']:
+            if self.animation['button_name'][-1] == 'm':
+                xyz_direction = f'{'z' if self.animation['button_direction'] in ['u', 'd'] else 'y'}'
+                blocks_ = self.blocks_z if self.animation['button_direction'] in ['u', 'd'] else self.blocks_y
+            elif self.animation['button_name'][-1] in ['l', 'r'] and self.animation['button_direction'] in ['u', 'd']:
+                xyz_direction = 'z'
+                coef = (100, ('l', 'r'))
+                blocks_ = self.blocks_z
+            else:
+                self.__animation_reset()
+                return
+        else:
+            self.__animation_reset()
+            return
+        # if action was recognized
+        new_blocks = blocks_.copy()
+        if coef:
+            mult = -1 if self.animation['button_name'][-1] in ['l', 'u'] else 1
+            for i in range(9):
+                new_blocks[i] = str(int(blocks_[i]) + coef[0] * mult)
+        self.animation['rotation_blocks'] = new_blocks
+        self.animation['rotation_index'] = cord_to_index(xyz_direction)
+        self.animation['rotation_coef'] = -1 if self.animation['button_direction'] in ['u', 'r'] else 1
+
+    def __make_rotation(self):
+        _blocks, index, cof = self.animation['rotation_blocks'],self.animation['rotation_index'],self.animation['rotation_coef']
+        # rotation animation
+        if self.animation['rotation_angle'] < 90:
+            if var['shuffle'] == 'fast':
+                _add_ang = 30
+            else:
+                _add_ang = 10 if 10 <= self.animation['rotation_angle'] <= 70 else 2
+            for _obj_location in _blocks:
+                world.rubik[_obj_location].rotate( index, _add_ang * cof)
+            self.animation['rotation_angle'] += _add_ang
+            world.rerender()
+        else:
+            # rewriting position
+            _blocks.pop(-1)
+            off_blocks = _blocks[2:] + _blocks[:2] if self.animation['button_direction'] in ['d', 'r'] else _blocks[-2:] + _blocks[:-2]
+            place_save = []
+            for pl in _blocks:  place_save.append(world.rubik[pl])
+            for pl in off_blocks:  world.rubik[pl] = place_save.pop(0)
+            self.__animation_reset()
+
+    def __animation_reset(self) -> None:
+        self.animation = self.animation_copy.copy()
 
     @property
     def __colors(self) -> dict:
@@ -107,73 +184,6 @@ class Rubik:
         return colors
 
 
-    def animation_reset(self):
-        self.animation = self.animation_copy.copy()
-
-    def calculate_rotation(self):
-        """ calculates rotation, changes only self.animation"""
-        coef = ()
-        # side rotation
-        if self.animation['button_name'][-1] in ['u', 'd'] and self.animation['button_direction'] in ['l', 'r']:
-            xyz_direction = 'y'
-            coef = (10, ('u', 'd'))
-            blocks_ = self.blocks_y
-        # front and back side vertical rotation and center
-        elif self.animation['button_name'][-2] in ['f', 'b']:
-            if self.animation['button_name'][-1] == 'm':
-                xyz_direction = f'{'x' if self.animation['button_direction'] in ['u', 'd'] else 'y'}'
-                blocks_ = self.blocks_x if self.animation['button_direction'] in ['u', 'd'] else self.blocks_y
-            elif self.animation['button_name'][-1] in ['l', 'r'] and self.animation['button_direction'] in ['u', 'd']:
-                xyz_direction = 'x'
-                coef = (1, ('l', 'r'))
-                blocks_ = self.blocks_x
-            else:
-                self.animation_reset()
-                return
-        # left and right side vertical rotation and center
-        elif self.animation['button_name'][-2] in ['l', 'r']:
-            if self.animation['button_name'][-1] == 'm':
-                xyz_direction = f'{'z' if self.animation['button_direction'] in ['u', 'd'] else 'y'}'
-                blocks_ = self.blocks_z if self.animation['button_direction'] in ['u', 'd'] else self.blocks_y
-            elif self.animation['button_name'][-1] in ['l', 'r'] and self.animation['button_direction'] in ['u', 'd']:
-                xyz_direction = 'z'
-                coef = (100, ('l', 'r'))
-                blocks_ = self.blocks_z
-            else:
-                self.animation_reset()
-                return
-        else:
-            self.animation_reset()
-            return
-        # if action was recognized
-        new_blocks = blocks_.copy()
-        if coef:
-            mult = -1 if self.animation['button_name'][-1] in ['l', 'u'] else 1
-            for i in range(9):
-                new_blocks[i] = str(int(blocks_[i]) + coef[0] * mult)
-        self.animation['rotation_blocks'] = new_blocks
-        self.animation['rotation_index'] = cord_to_index(xyz_direction)
-        self.animation['rotation_coef'] = -1 if self.animation['button_direction'] in ['u', 'r'] else 1
-
-    def rotate(self):
-        _blocks, index, cof = self.animation['rotation_blocks'],self.animation['rotation_index'],self.animation['rotation_coef']
-        # rotation animation
-        if self.animation['rotation_angle'] < 90:
-            if var['shuffle'] == 'fast':
-                _add_ang = 30
-            else:
-                _add_ang = 10 if 10 <= self.animation['rotation_angle'] <= 70 else 2
-            for _obj_location in _blocks:
-                world.rubik[_obj_location].rotate( index, _add_ang * cof)
-            self.animation['rotation_angle'] += _add_ang
-        else:
-            # rewriting position
-            _blocks.pop(-1)
-            off_blocks = _blocks[2:] + _blocks[:2] if self.animation['button_direction'] in ['d', 'r'] else _blocks[-2:] + _blocks[:-2]
-            place_save = []
-            for pl in _blocks:  place_save.append(world.rubik[pl])
-            for pl in off_blocks:  world.rubik[pl] = place_save.pop(0)
-            self.animation_reset()
 
 rubik = Rubik()
 
@@ -227,45 +237,6 @@ main_json = Json("MiRubik","MiRubik_data.json", {'sound' : True, 'best_time' : [
 
 """ Class Timer """
 
-class Timer:
-    def __init__(self):
-        self.__running = False
-        self.__start_time = 0
-        self.__time = 0
-
-    @property
-    def active(self) -> bool:
-        """ checks if timer is working """
-        return self.__running
-
-    def start(self, ticks):
-        """ starts the timer """
-        self.__start_time = ticks
-        self.__running = True
-
-    def update(self, ticks):
-        """ should be put in the loop, update every frame """
-        if self.__running:
-            self.__time = ticks - self.__start_time
-
-    def stop(self):
-        self.__running = False
-
-    def reset(self):
-        self.__running = False
-        self.__start_time = 0
-        self.__time = 0
-
-    @property
-    def time(self) -> str:
-        if self.__time > 0:
-            human_time = self.__time // 1000
-            minutes = human_time // 60
-            seconds = human_time % 60
-            milliseconds = (self.__time % 1000) // 10
-            return f"{minutes:02}:{seconds:02}:{milliseconds:02}"
-        return "00:00:00"
-
 # timer
 timer = Timer()
 
@@ -277,6 +248,11 @@ class World:
         self.rubik = {}
         self.rubik_copy = None
         self.solved = False
+        # rerendering screen
+        self.rerender_bool = False
+
+    def rerender(self):
+        self.rerender_bool = True
 
     def save_data(self):
         self.rubik_copy = copy.deepcopy(self.rubik)
@@ -288,7 +264,7 @@ class World:
         self.rubik = copy.deepcopy(self.rubik_copy)
         for animation in anim:
             anim[animation] = 0
-        var['active'] = True
+        self.rerender()
 
 # world
 world = World()
@@ -298,35 +274,37 @@ world = World()
 class CameraChanger:
     """ Calculating all points` position on the screen and rendering objects in order """
 
-    def __init__(self,name,rotation=(0,0)):
+    def __init__(self, name: str, rotation: tuple = (0,0)):
         # main properties
-        self.name = name
-        self.rotation = list(rotation)
-        self.size = 1
+        self.name: str = name
+        self.rotation: list = list(rotation)
+        self.size: float = 1
         # all objects and their`s info order (for rendering)
-        self.order = []
+        self.order: list = []
         # save start rotation
-        self.init_rotation = rotation
+        self.init_rotation: tuple = rotation
 
-    def reset(self):
+    def reset(self) -> None:
         """ full camera reset """
         self.rotation = list(self.init_rotation)
         self.size = 1
+        world.rerender()
 
-    def rotate(self,index, _add_ang):
+    def rotate(self,index: int, add_angle: int | float) -> None:
         """ rotate the camera """
-        self.rotation[index] += _add_ang
+        self.rotation[index] += add_angle
         if self.rotation[index] > 360:
             self.rotation[index] -= 360
         elif self.rotation[index] < -360:
             self.rotation[index] += 360
-        var['active'] = True
+        world.rerender()
 
     def resize(self,add_size):
         """ resize the camera """
-        if (camera.size < 2 or add_size < 0) and (camera.size > 0.3 or add_size > 0):
+        if (self.size < 2 or add_size < 0) and (self.size > 0.3 or add_size > 0):
             self.size *= 1 + add_size / 20
-            var['active'] = True
+            world.rerender()
+
 
     def calculate(self):
         """
@@ -338,7 +316,7 @@ class CameraChanger:
         def calculate_color(_depth, _colors):
             """calculate color based on z position of an object"""
             f_colors = []
-            limit = 80 * camera.size
+            limit = 80 * self.size
             if _depth > limit:
                 return _colors
             elif _depth < -limit:
@@ -406,44 +384,44 @@ class CameraChanger:
 
 
 # cameras
-camera = CameraChanger('Camera',(20,45))
+camera = CameraChanger('Camera', (20,45))
 
 
 """ Object Class """
 
 class ObjectChanger:
-    def __init__(self, name, polygons, points):
+    def __init__(self, name: str, polygons: tuple[tuple,tuple], points: dict[str,list]):
         # add object to all objects
         world.all_objects.append(self)
         # main properties
-        self.name = name
-        self.points = points
-        self.rotation = [0, 0, 0]
+        self.name: str = name
+        self.points: dict[str,list] = points
+        self.rotation: list = [0, 0, 0]
         self.polygons = polygons
         # saving start points position
-        self.points_copy = copy.deepcopy(self.points)
+        self.__points_copy = copy.deepcopy(self.points)
 
-    def reset(self):
+    def reset(self) -> None:
         """ reset the object """
         self.rotation = [0, 0, 0]
-        self.points = copy.deepcopy(self.points_copy)
+        self.points = copy.deepcopy(self.__points_copy)
+        world.rerender()
 
-    def rotate(self,index, _add_ang):
+    def rotate(self,index, add_angle: int | float) -> None:
         """ rotate object """
-
         for _point in self.points:
             radius = math.hypot(self.points[_point][index[0]],
                                 self.points[_point][index[1]])
             angle = angle_calc(radius, self.points[_point][index[0]],
-                               self.points[_point][index[1]]) - _add_ang
+                               self.points[_point][index[1]]) - add_angle
             self.points[_point][index[0]] = round(radius * math.sin(math.radians(angle)), 2)
             self.points[_point][index[1]] = round(radius * math.cos(math.radians(angle)), 2)
-        self.rotation[pairs_to_cords[index]] -= _add_ang
+        self.rotation[pairs_to_cords[index]] -= add_angle
         if self.rotation[pairs_to_cords[index]] >= 360:
             self.rotation[pairs_to_cords[index]] -= 360
         if self.rotation[pairs_to_cords[index]] < 0:
             self.rotation[pairs_to_cords[index]] += 360
-        var['active'] = True
+        world.rerender()
 
 # creating ObjectChanger objects
 
@@ -495,6 +473,19 @@ for num, side in enumerate(['f','r','b','l']):
 
 """ Rubik starting state """
 
+rubik_list = [# first layer (front)54
+        corner_lfu,   cut_fu,   corner_rfu,
+        cut_lf    ,   side_f,   cut_rf    ,
+        corner_lfd,   cut_fd,   corner_rfd,
+        # second layer (mid)
+        cut_lu    ,   side_u,   cut_ru    ,
+        side_l    ,   cent_p,   side_r    ,
+        cut_ld    ,   side_d,   cut_rd    ,
+        # third layer (back)
+        corner_lbu,   cut_bu,   corner_rbu,
+        cut_lb    ,   side_b,   cut_rb    ,
+        corner_lbd,   cut_bd,   corner_rbd]
+
 world.rubik = {# first layer (front)
         '111' : corner_lfu, '112' : cut_fu, '113' : corner_rfu,
         '121' : cut_lf    , '122' : side_f, '123' : cut_rf    ,
@@ -539,10 +530,10 @@ textures['win_fade'].set_alpha(60)
 # Sounds
 
 sounds = {
-    'click'  : pygame.mixer.Sound("textures/click.wav"),
-    'select' : pygame.mixer.Sound("textures/select.wav"),
+    'click'  : pygame.mixer.Sound("sounds/click.wav"),
+    'select' : pygame.mixer.Sound("sounds/select.wav"),
 }
-pygame.mixer.music.load("textures/cosmo.mp3")
+pygame.mixer.music.load("sounds/cosmo.mp3")
 pygame.mixer.music.play(-1)
 # if silent mode is on
 if not main_json.data['sound']:
@@ -551,11 +542,12 @@ if not main_json.data['sound']:
 # Clickable Buttons
 
 clicks = {
+    # top menu
     'menu' : pygame.Rect(0, 0, 1920, 130),
     'menu_exit' : pygame.Rect(990, 0, 110, 100),
     'menu_sound' : pygame.Rect(15, 0, 110, 100),
-
     'menu_restart' : pygame.Rect(830, 0, 110, 100),
+    # main menu
     'play' : pygame.Rect(1300, 350, 300, 130),
     'inspect' : pygame.Rect(1315, 600, 300, 130),
 }
@@ -576,25 +568,24 @@ while running:
     """ BRAIN """
 
     # objects re-render if action made
-    if var['active']:
-        var['active'] = False
+    if world.rerender_bool:
+        world.rerender_bool = False
         camera.calculate()
 
     # timer update
     world.solved = rubik_solved()
     timer.update(pygame.time.get_ticks())
     # switches
-    if world.solved != var['remember']:
+    if world.solved != var['flag']:
+        var['flag'] = rubik_solved()
         if world.solved and var['mode'] == 'game' and var['game_type'] == 'play':
             timer.stop()
             for ind, best_time in enumerate(main_json.data['best_time']):
-                if timer.time < best_time and timer.time not in main_json.data['best_time']:
+                if timer. real_time < best_time and timer. real_time not in main_json.data['best_time']:
                     main_json.data['best_time'].insert(ind, timer.time)
                     main_json.data['best_time'].pop(-1)
                     break
 
-    # make a switch
-    var['remember'] = rubik_solved()
 
     # rubik reshuffling
     if anim['restart']:
@@ -622,14 +613,9 @@ while running:
             rubik.animation['button_direction'] = random.choice(['l', 'r', 'u', 'd'])
 
 
-    # calculating blocks to move and the direction
+    # twist rubik one time, if instructions given
     if rubik.animation['button_name']:
-        # rotation animation
-        if not rubik.animation['rotation_coef']:
-            rubik.calculate_rotation()
-        # rotation
-        if rubik.animation['rotation_coef']:
-            rubik.rotate()
+        rubik.twist()
 
 
     # start animation
@@ -742,15 +728,14 @@ while running:
 
                 if clicks['menu'].collidepoint(mouse_pos) and not (event.type == pygame.MOUSEMOTION and mouse_keys[2]):
                     var['mouse_lock'] = 'menu'
-                    var['game_type'] = ''
-                    timer.stop()
-                    sound('select')
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and clicks['menu_exit'].collidepoint(mouse_pos):
                     world.reset()
                     var['mode'] = 'menu'
                     center = [550, 540]
                     camera.size = 0.8
+                    var['game_type'] = ''
+                    timer.stop()
                     sound('select')
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and \
@@ -767,18 +752,22 @@ while running:
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                     pygame.mouse.set_visible(False) ; pygame.event.set_grab(True)
                     mouse_cords = pygame.mouse.get_pos()
+
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
                     pygame.mouse.set_visible(True) ; pygame.event.set_grab(False)
                     pygame.mouse.set_pos(mouse_cords)
+
                 elif event.type == pygame.MOUSEMOTION and mouse_keys[2]:
                     dx, dy = event.rel
                     if (camera.rotation[0] < 85 or dy < 0) and (camera.rotation[0] > -85 or dy > 0):
                         camera.rotate(0, dy / 20)
                     camera.rotate(1, -dx / 20)
 
+
                 # shuffle mode activation (for testing)
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_b:
                     var['shuffle'] = 'fast' if var['shuffle'] != 'fast' else ''
+
 
                 # informating if any button was activated
                 elif not rubik.animation['button_name']:
