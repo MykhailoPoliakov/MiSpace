@@ -1,17 +1,15 @@
 import pygame
 import math
-import random
 import sys, os
-import copy
 
 # local classes import
 from json_class import Json
 from timer_class import Timer
-from element_class import Element
+from rubik_class import Rubik
 
 # globals
 var = {'analytic' : False, 'solid' : True, 'mouse_lock' : '', 'flag' : '',
-       'motion_start' : '','shuffle' : '', 'mode' : '', 'mode_anim' : ['',0]}
+       'motion_start' : '', 'mode' : '', 'mode_anim' : ['',0]}
 
 anim = {'menu' : 0, 'win_fade' : 0, 'restart' : 0,}
 
@@ -22,6 +20,10 @@ def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return relative_path
+
+def get_texture(texture):
+    return pygame.image.load(resource_path( f"assets/textures/{texture}") ).convert_alpha()
+
 
 
 """ Basic Functions """
@@ -36,12 +38,6 @@ def basic_animation(lock_word, if_const, if_plus, else_minus):
 def sound(track):
     if main_json.data['sound']:
         sounds[track].play()
-
-def rubik_solved():
-    for key in rubik.state:
-        if rubik.elements[rubik.state[key]].rotation != rubik.elements['cent_p'].rotation:
-            return False
-    return True
 
 """ Output Functions """
 
@@ -62,8 +58,6 @@ main_json = Json("MiRubik","MiRubik_data.json",
 
 class World:
     def __init__(self):
-        #self.rubik = {}
-        self.rubik_copy = None
         self.solved = False
         # rerendering screen
         self.rerender_bool = False
@@ -71,15 +65,9 @@ class World:
     def rerender(self):
         self.rerender_bool = True
 
-    def save_data(self):
-        pass
-        #self.rubik_copy = copy.deepcopy(self.rubik)
-
     def reset(self):
         camera.reset()
-        for object_ in rubik.elements:
-            object_.reset()
-        #self.rubik = copy.deepcopy(self.rubik_copy)
+        rubik.reset()
         for animation in anim:
             anim[animation] = 0
         self.rerender()
@@ -118,7 +106,7 @@ class CameraChanger:
             self.rotation[index] += 360
         world.rerender()
 
-    def resize(self,add_size):
+    def resize(self,add_size) -> None:
         """ resize the camera """
         if (self.size < 2 or add_size < 0) and (self.size > 0.3 or add_size > 0):
             self.size *= 1 + add_size / 20
@@ -213,258 +201,6 @@ camera = CameraChanger('Camera',(550,540), (20,45))
 
 """ Class Rubik """
 
-class Rubik:
-    """
-    something
-    """
-    blocks_x = ['112', '122', '132', '232', '332', '322', '312', '212', '222']
-    blocks_y = ['121', '122', '123', '223', '323', '322', '321', '221', '222']
-    blocks_z = ['211', '221', '231', '232', '233', '223', '213', '212', '222']
-
-    def __init__(self):
-        # rotation properties
-        self.animation = {
-            'button_name': '',
-            'button_direction': '',
-            'rotation_angle': 0,
-            'xyz_direction': '',
-            'rotation_coef': (),
-            'rotation_blocks': [],}
-        self.animation_copy =  self.animation.copy()
-        # colors
-        self.__colors = self.__create_colors()
-        # elements
-        self.elements: dict = {}
-        self.__create_elements_cubes()
-        self.__create_elements_buttons()
-        # rubik`s state
-        self.state = {
-            # first layer (front)
-            '111': 'corner_lfu', '112': 'cut_fu'  , '113': 'corner_rfu',
-            '121': 'cut_lf'    , '122': 'side_f'  , '123': 'cut_rf'    ,
-            '131': 'corner_lfd', '132': 'cut_fd'  , '133': 'corner_rfd',
-            # second layer (mid)
-            '211': 'cut_lu'    , '212': 'side_u'  , '213': 'cut_ru'    ,
-            '221': 'side_l'    , '222': 'cent_p'  , '223': 'side_r'    ,
-            '231': 'cut_ld'    , '232': 'side_d'  , '233': 'cut_rd'    ,
-            # third layer (back)
-            '311': 'corner_lbu', '312': 'cut_bu'  , '313': 'corner_rbu',
-            '321': 'cut_lb'    , '322': 'side_b'  , '323': 'cut_rb'    ,
-            '331': 'corner_lbd', '332': 'cut_bd'  , '333': 'corner_rbd',
-        }
-
-
-    def reset(self):
-        pass
-
-    def twist(self) -> None:
-        # rotation animation
-        if not rubik.animation['rotation_coef']:
-            self.__calculate_rotation()
-        # rotation
-        if rubik.animation['rotation_coef']:
-            self.__make_rotation()
-
-    def __calculate_rotation(self):
-        """ calculates rotation, changes only self.animation"""
-        def cord_to_index(cord: str) -> (int, int):
-            transfer = {'x': 0, 'y': 1, 'z': 2}
-            return transfer[cord]
-
-        coef = ()
-        # side rotation
-        if self.animation['button_name'][-1] in ['u', 'd'] and self.animation['button_direction'] in ['l', 'r']:
-            xyz_direction = 'y'
-            coef = (10, ('u', 'd'))
-            blocks_ = self.blocks_y
-        # front and back side vertical rotation and center
-        elif self.animation['button_name'][-2] in ['f', 'b']:
-            if self.animation['button_name'][-1] == 'm':
-                xyz_direction = f'{'x' if self.animation['button_direction'] in ['u', 'd'] else 'y'}'
-                blocks_ = self.blocks_x if self.animation['button_direction'] in ['u', 'd'] else self.blocks_y
-            elif self.animation['button_name'][-1] in ['l', 'r'] and self.animation['button_direction'] in ['u', 'd']:
-                xyz_direction = 'x'
-                coef = (1, ('l', 'r'))
-                blocks_ = self.blocks_x
-            else:
-                self.__animation_reset()
-                return
-        # left and right side vertical rotation and center
-        elif self.animation['button_name'][-2] in ['l', 'r']:
-            if self.animation['button_name'][-1] == 'm':
-                xyz_direction = f'{'z' if self.animation['button_direction'] in ['u', 'd'] else 'y'}'
-                blocks_ = self.blocks_z if self.animation['button_direction'] in ['u', 'd'] else self.blocks_y
-            elif self.animation['button_name'][-1] in ['l', 'r'] and self.animation['button_direction'] in ['u', 'd']:
-                xyz_direction = 'z'
-                coef = (100, ('l', 'r'))
-                blocks_ = self.blocks_z
-            else:
-                self.__animation_reset()
-                return
-        else:
-            self.__animation_reset()
-            return
-        # if action was recognized
-        new_blocks = blocks_.copy()
-        if coef:
-            mult = -1 if self.animation['button_name'][-1] in ['l', 'u'] else 1
-            for i in range(9):
-                new_blocks[i] = str(int(blocks_[i]) + coef[0] * mult)
-        self.animation['rotation_blocks'] = new_blocks
-        self.animation['rotation_index'] = cord_to_index(xyz_direction)
-        self.animation['rotation_coef'] = -1 if self.animation['button_direction'] in ['u', 'r'] else 1
-
-    def __make_rotation(self):
-        _blocks, index, cof = self.animation['rotation_blocks'],self.animation['rotation_index'],self.animation['rotation_coef']
-        # rotation animation
-        if self.animation['rotation_angle'] < 90:
-            if var['shuffle'] == 'fast':
-                _add_ang = 30
-            else:
-                _add_ang = 10 if 10 <= self.animation['rotation_angle'] <= 70 else 2
-            for obj_location in _blocks:
-                rubik.elements[rubik.state[obj_location]].rotate( index, _add_ang * cof)
-            self.animation['rotation_angle'] += _add_ang
-            world.rerender()
-        else:
-            # rewriting position
-            _blocks.pop(-1)
-            off_blocks = _blocks[2:] + _blocks[:2] if self.animation['button_direction'] in ['d', 'r'] else _blocks[-2:] + _blocks[:-2]
-            place_save = []
-            for pl in _blocks:  place_save.append(rubik.state[pl])
-            for pl in off_blocks:  rubik.state[pl] = place_save.pop(0)
-            self.__animation_reset()
-
-    def __animation_reset(self) -> None:
-        self.animation = self.animation_copy.copy()
-
-    @staticmethod
-    def __create_colors() -> dict:
-        """
-            returns dict of lists of 2 tuples,
-            with color of polygon as a first tuple and color of outlines as the second
-        """
-        colors: dict = {
-            'red': [(153, 0, 0)],
-            'green': [(0, 102, 0)],
-            'blue': [(0, 76, 153)],
-            'yellow': [(204, 102, 0)],
-            'orange': [(204, 204, 0)],
-            'white': [(255, 229, 204)],
-            'gray': [(50, 50, 50)]
-        }
-        for color in colors:
-            colors[color].append(
-                (int(colors[color][0][0] * 0.8),
-                 int(colors[color][0][1] * 0.8),
-                 int(colors[color][0][2] * 0.8)))
-        return colors
-
-    def __create_elements_cubes(self) -> None:
-        """ Objects Creation Functions """
-        def create_cube(_obj_name, points_offset, color_input):
-            cube_color = ('red', 'yellow', 'green', 'blue', 'white', 'orange')
-            color_output = ['gray', 'gray', 'gray', 'gray', 'gray', 'gray']
-            for _num in color_input:
-                color_output[_num - 1] = cube_color[_num - 1]
-            colored = ((('1', '2', '3', '4'), self.__colors[color_output[0]]),
-                       (('5', '6', '7', '8'), self.__colors[color_output[1]]),
-                       (('3', '4', '8', '7'), self.__colors[color_output[2]]),
-                       (('1', '2', '6', '5'), self.__colors[color_output[3]]),
-                       (('1', '4', '8', '5'), self.__colors[color_output[4]]),
-                       (('2', '3', '7', '6'), self.__colors[color_output[5]]))
-            cube_points = {
-                '1': [33.0, 33.0, 33.0], '2': [33.0, -33.0, 33.0],
-                '3': [-33.0, -33.0, 33.0], '4': [-33.0, 33.0, 33.0],
-                '5': [33.0, 33.0, -33.0], '6': [33.0, -33.0, -33.0],
-                '7': [-33.0, -33.0, -33.0], '8': [-33.0, 33.0, -33.0],
-            }
-            for _point in cube_points:
-                cube_points[_point][0] += points_offset[0]
-                cube_points[_point][1] += points_offset[1]
-                cube_points[_point][2] += points_offset[2]
-            visibility = True
-            return [_obj_name, colored, cube_points, visibility]
-
-        # creating ObjectChanger objects
-        self.elements.update({
-            # FRONT
-            # upper line
-            'corner_lfu': Element(*create_cube('corner_lfu', (-66, 66, 66), (1, 3, 5))),
-            'cut_fu': Element(*create_cube('cut_fu', (0, 66, 66), (1, 5))),
-            'corner_rfu': Element(*create_cube('corner_rfu', (66, 66, 66), (1, 4, 5))),
-            # middle line
-            'cut_lf': Element(*create_cube('cut_lf', (-66, 0, 66), (3, 1))),
-            'side_f': Element(*create_cube('side_f', (0, 0, 66), (1,))),
-            'cut_rf': Element(*create_cube('cut_rf', (66, 0, 66), (4, 1))),
-            # down line
-            'corner_lfd': Element(*create_cube('corner_lfd', (-66, -66, 66), (1, 3, 6))),
-            'cut_fd': Element(*create_cube('cut_fd', (0, -66, 66), (1, 6))),
-            'corner_rfd': Element(*create_cube('corner_rfd', (66, -66, 66), (1, 4, 6))),
-
-            # MIDDLE
-            # upper line
-            'cut_lu': Element(*create_cube('cut_lu', (-66, 66, 0), (3, 5))),
-            'side_u': Element(*create_cube('side_u', (0, 66, 0), (5,))),
-            'cut_ru': Element(*create_cube('cut_ru', (66, 66, 0), (4, 5))),
-            # middle line
-            'side_l': Element(*create_cube('side_l', (-66, 0, 0), (3,))),
-            'cent_p': Element(*create_cube('cent_p', (0, 0, 0), ())),
-            'side_r': Element(*create_cube('side_r', (66, 0, 0), (4,))),
-            # down line
-            'cut_ld': Element(*create_cube('cut_ld', (-66, -66, 0), (3, 6))),
-            'side_d': Element(*create_cube('side_d', (0, -66, 0), (6,))),
-            'cut_rd': Element(*create_cube('cut_rd', (66, -66, 0), (4, 6))),
-
-            # BACK
-            # upper line
-            'corner_lbu': Element(*create_cube('corner_lbu', (-66, 66, -66), (2, 3, 5))),
-            'cut_bu': Element(*create_cube('cut_bu', (0, 66, -66), (2, 5))),
-            'corner_rbu': Element(*create_cube('corner_rbu', (66, 66, -66), (2, 4, 5))),
-            # middle line
-            'cut_lb': Element(*create_cube('cut_lb', (-66, 0, -66), (3, 2))),
-            'side_b': Element(*create_cube('side_b', (0, 0, -66), (2,))),
-            'cut_rb': Element(*create_cube('cut_rb', (66, 0, -66), (4, 2))),
-            # down line
-            'corner_lbd': Element(*create_cube('corner_lbd', (-66, -66, -66), (2, 3, 6))),
-            'cut_bd': Element(*create_cube('cut_bd', (0, -66, -66), (2, 6))),
-            'corner_rbd': Element(*create_cube('corner_rbd', (66, -66, -66), (2, 4, 6))),
-        })
-
-    def __create_elements_buttons(self) -> None:
-        def create_button(_obj_name, points_offset, direction):
-            colored = ((('1', '2', '3', '4'), ((255, 255, 255), (255, 255, 255))),)
-            cof = -1 if direction in ['b', 'l', 'd'] else 1
-            if direction in ['f', 'b']:
-                _points = {'1': [33.0, 33.0, 0], '2': [33.0, -33.0, 0],
-                           '3': [-33.0, -33.0, 0], '4': [-33.0, 33.0, 0], }
-                index = (0, 1, 2)
-            elif direction in ['l', 'r']:
-                _points = {'1': [0, 33.0, 33.0], '2': [0, -33.0, 33.0],
-                           '3': [0, -33.0, -33.0], '4': [0, 33.0, -33.0], }
-                index = (1, 2, 0)
-            elif direction in ['u', 'd']:
-                _points = {'1': [33.0, 0, 33.0], '2': [33.0, 0, -33.0],
-                           '3': [-33.0, 0, -33.0], '4': [-33.0, 0, 33.0], }
-                index = (2, 0, 1)
-            for _point in colored[0][0]:
-                _points[_point][index[0]] += points_offset[0] * cof
-                _points[_point][index[1]] += points_offset[1] * cof
-                _points[_point][index[2]] += 100 * cof
-            visibility = False
-            return [_obj_name, colored, _points, visibility]
-        # buttons
-        letter_list = (['u', 'l', 'd', 'r'], ['l', 'd', 'r', 'u'], ['d', 'r', 'u', 'l'], ['r', 'u', 'l', 'd'])
-        for _index, side in enumerate(['f', 'r', 'b', 'l']):
-            letter = letter_list[_index]
-            self.elements.update({
-                f'button_{side}m': Element(*create_button(f'button_{side}m', (0, 0), side)),
-                f'button_{side}{letter[0]}': Element(*create_button(f'button_{side}{letter[0]}', (0, 66), side)),
-                f'button_{side}{letter[1]}': Element(*create_button(f'button_{side}{letter[1]}', (-66, 0), side)),
-                f'button_{side}{letter[2]}': Element(*create_button(f'button_{side}{letter[2]}', (0, -66), side)),
-                f'button_{side}{letter[3]}': Element(*create_button(f'button_{side}{letter[3]}', (66, 0), side)),
-            })
-
 # rubik
 rubik = Rubik()
 
@@ -479,16 +215,18 @@ screen.fill(background_color)
 # Textures
 
 textures = {
-    'fade': pygame.image.load(resource_path("textures/fade.png")).convert_alpha(),
-    'win_fade': pygame.image.load(resource_path("textures/win_fade.png")).convert_alpha(),
-    'background': pygame.image.load(resource_path("textures/lake.jpg")).convert_alpha(),
-    'black': pygame.image.load(resource_path("textures/black.png")).convert_alpha(),
-    'menu': pygame.image.load(resource_path("textures/menu.png")).convert_alpha(),
-    'left_button': pygame.image.load(resource_path("textures/left_button.png")).convert_alpha(),
-    'right_button': pygame.image.load(resource_path("textures/right_button.png")).convert_alpha(),
-    'corner_button': pygame.image.load(resource_path("textures/corner_button.png")).convert_alpha(),
-    'sound_on': pygame.image.load(resource_path("textures/sound_on.png")).convert_alpha(),
-    'sound': pygame.image.load(resource_path("textures/sound.png")).convert_alpha(),
+    'fade'         : get_texture("fade.png"),
+    'win_fade'     : get_texture("win_fade.png"),
+    'background'   : get_texture("lake.jpg"),
+    'black'        : get_texture("black.png"),
+    # top menu
+    'menu'         : get_texture("menu.png"),
+    'left_button'  : get_texture("left_button.png"),
+    'right_button' : get_texture("right_button.png"),
+    'corner_button': get_texture("corner_button.png"),
+    # sound textures
+    'sound_on'     : get_texture("sound_on.png"),
+    'sound'        : get_texture("sound.png"),
 }
 textures['background'] = pygame.transform.scale(textures['background'], (1920, 1080))
 textures['fade'] = pygame.transform.scale(textures['fade'], (1920, 1080))
@@ -499,26 +237,34 @@ textures['win_fade'].set_alpha(60)
 # Sounds
 
 sounds = {
-    'click': pygame.mixer.Sound("sounds/click.wav"),
-    'select': pygame.mixer.Sound("sounds/select.wav"),
+    'click': pygame.mixer.Sound("assets/sounds/click.wav"),
+    'select': pygame.mixer.Sound("assets/sounds/select.wav"),
 }
-pygame.mixer.music.load("sounds/cosmo.mp3")
+pygame.mixer.music.load("assets/sounds/cosmo.mp3")
 pygame.mixer.music.play(-1)
 # if silent mode is on
 if not main_json.data['sound']:
     pygame.mixer.music.pause()
 
+# Fonts
+
+fonts = {
+    'sans': "assets/textures/sans.ttf",
+    'cosmo': "assets/textures/cosmo.otf",
+
+}
+
 # Clickable Buttons
 
 clicks = {
     # top menu
-    'menu': pygame.Rect(0, 0, 1920, 130),
-    'menu_exit': pygame.Rect(990, 0, 110, 100),
-    'menu_sound': pygame.Rect(15, 0, 110, 100),
+    'menu'        : pygame.Rect(0, 0, 1920, 130),
+    'menu_exit'   : pygame.Rect(990, 0, 110, 100),
+    'menu_sound'  : pygame.Rect(15, 0, 110, 100),
     'menu_restart': pygame.Rect(830, 0, 110, 100),
     # main menu
-    'play': pygame.Rect(1300, 350, 300, 130),
-    'inspect': pygame.Rect(1315, 600, 300, 130),
+    'play'        : pygame.Rect(1300, 350, 300, 130),
+    'inspect'     : pygame.Rect(1315, 600, 300, 130),
 }
 
 """ Starting Variables """
@@ -526,7 +272,6 @@ clicks = {
 var['mode'] = 'menu'
 camera.size = 0.8
 camera.center = [550,540]
-world.save_data()
 
 """ Main Cycle """
 
@@ -540,24 +285,38 @@ def main() -> None:
 
         """ BRAIN """
 
-        # objects re-render if action made
+        # objects re-render if change in camera
         if world.rerender_bool:
             world.rerender_bool = False
             camera.calculate()
+        # objects re-render if change in rubik
+        if rubik.rerender_bool:
+            rubik.rerender_bool = False
+            camera.calculate()
 
         # timer update
-        world.solved = rubik_solved()
+        rubik.solved = rubik.check_solved()
         timer.update(pygame.time.get_ticks())
         # switches
-        if world.solved != var['flag']:
-            var['flag'] = rubik_solved()
-            if world.solved and var['mode'] == 'game' and var['game_type'] == 'play':
+        if rubik.solved != var['flag']:
+            var['flag'] = rubik.check_solved()
+            if rubik.solved and var['mode'] == 'game' and var['game_type'] == 'play':
                 timer.stop()
                 for ind, best_time in enumerate(main_json.data['best_time']):
-                    if timer. real_time < best_time and timer. real_time not in main_json.data['best_time']:
+                    if timer.real_time < best_time and timer.real_time not in main_json.data['best_time']:
                         main_json.data['best_time'].insert(ind, timer.time)
                         main_json.data['best_time'].pop(-1)
                         break
+
+
+        # if shuffle mode
+        if rubik.shuffle_val and not rubik.animation['button_name']:
+            rubik.shuffle()
+
+
+        # twist rubik one time, if instructions given
+        if rubik.animation['button_name']:
+            rubik.twist()
 
 
         # rubik reshuffling
@@ -566,24 +325,13 @@ def main() -> None:
                 final_camera_rot_x = (camera.init_rotation[0] - camera.rotation[0] + 360) / 200
                 final_camera_rot_y = (camera.init_rotation[1] - camera.rotation[1] + 360) / 200
             anim['restart'] -= 1
-            var['shuffle'] = 'fast'
+            rubik.shuffle_val = 'fast'
             camera.rotate(0, final_camera_rot_x)
             camera.rotate(1, final_camera_rot_y)
             timer.reset()
-            if anim['restart'] == 1:
-                anim['restart'] = 0
-                var['shuffle'] = ''
+            if anim['restart'] == 0:
+                rubik.shuffle_val = ''
                 timer.start(pygame.time.get_ticks())
-
-        # if shuffle mode
-        if var['shuffle'] and not rubik.animation['button_name']:
-            rubik.animation['button_name'] = random.choice(list(rubik.elements.values())[-20:]).name
-            rubik.animation['button_direction'] = random.choice(['l', 'r', 'u', 'd'])
-
-
-        # twist rubik one time, if instructions given
-        if rubik.animation['button_name']:
-            rubik.twist()
 
 
         # start animation
@@ -614,12 +362,12 @@ def main() -> None:
 
                 if var['mode_anim'][1] > 100:
                     if var['game_type'] == 'play':
-                        var['shuffle'] = 'slow'
+                        rubik.shuffle_val = 'slow'
 
                 if var['mode_anim'][1] > 150:
                     var['mode'] = 'game'
                     var['mode_anim'] = ['', 0]
-                    var['shuffle'] = ''
+                    rubik.shuffle_val = ''
                     camera.center = [960, 540]
                     camera.size = 1
                     camera.rotation = list(camera.init_rotation)
@@ -676,7 +424,7 @@ def main() -> None:
                         var['mode'] = 'start'
                         var['game_type'] = 'play'
                         var['mode_anim'] = ['start', 0]
-                        var['shuffle'] = 'fast'
+                        rubik.shuffle_val = 'fast'
                         var['active'] = True
                         timer.reset()
                         sound('select')
@@ -734,7 +482,7 @@ def main() -> None:
 
                     # shuffle mode activation (for testing)
                     elif event.type == pygame.KEYDOWN and event.key == pygame.K_b:
-                        var['shuffle'] = 'fast' if var['shuffle'] != 'fast' else ''
+                        rubik.shuffle_val = 'fast' if rubik.shuffle_val != 'fast' else ''
 
 
                     # informating if any button was activated
@@ -780,7 +528,7 @@ def main() -> None:
                                     rubik.animation['button_direction'] = inv_let
                                 # sounds
                                 if rubik.animation['button_name']:
-                                    if var['mode'] == 'game' and var['shuffle'] != 'fast' and main_json.data['sound']:
+                                    if var['mode'] == 'game' and rubik.shuffle_val != 'fast' and main_json.data['sound']:
                                         sound('click')
                                     # turning off the switch
                                     var['motion_start'] = ''
@@ -800,16 +548,18 @@ def main() -> None:
             # start menu
             case 'menu':
                 # main menu buttons
-                font = pygame.font.Font(resource_path("textures/cosmo.otf"), 170)
+                font = pygame.font.Font( fonts["cosmo"] , 170)
                 text = font.render("play", True, (255, 255, 255))
                 screen.blit(text, (1300, 350))
-                font = pygame.font.Font(resource_path("textures/cosmo.otf"), 80)
+
+                font = pygame.font.Font( fonts["cosmo"] , 80)
                 text = font.render("INSPECT", True, (255, 255, 255))
                 screen.blit(text, (1315, 600))
+
                 screen.blit(textures['black'], (0, 0))
 
                 # top 3 best runs
-                font = pygame.font.Font("textures/sans.ttf", 40)
+                font = pygame.font.Font( fonts["sans"] , 40)
                 if main_json.data['best_time'][0] or True:
                     text = font.render(f"1. {main_json.data['best_time'][0]}", True, (255, 255, 255))
                     screen.blit(text, (1650, 15))
