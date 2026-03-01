@@ -151,13 +151,15 @@ class CameraChanger:
             polygons = {} ; pol_order = [] ; obj_depth = 0
             for polygon, color in obj.polygons:
                 polygons[polygon] = {'render_points': [], 'depth': 0}
-                for _point in polygon:
+                for wrong_index in polygon:
+                    # real index
+                    index = wrong_index - 1
                     # camera y rotation offset
-                    radius = math.hypot(obj.points[_point][0], obj.points[_point][2])
+                    radius = math.hypot(obj.points[index][0], obj.points[index][2])
                     angle = angle_calc(radius,
-                                obj.points[_point][0], obj.points[_point][2]) - self.rotation[1]
+                                obj.points[index][0], obj.points[index][2]) - self.rotation[1]
                     cord_x = round(radius * math.sin(math.radians(angle)), 2)
-                    cord_y = obj.points[_point][1]
+                    cord_y = obj.points[index][1]
                     cord_z = round(radius * math.cos(math.radians(angle)), 2)
                     # camera x rotation offset and final camera cord output
                     radius = math.hypot(cord_y, cord_z)
@@ -492,7 +494,7 @@ def main() -> None:
                             for _object in camera.order:
                                 # if button`s depth < 0 mask won`t work
                                 if _object[0].name[:6] == 'button' and _object[1] > 0:
-                                    for point in list(_object[3][('1', '2', '3', '4')]['render_points']):
+                                    for point in list(_object[3][( 1, 2, 3, 4 )]['render_points']):
                                         new_list.append((point[0], point[1]))
                                     button_name = _object[0].name
                                     # mask creation
@@ -622,7 +624,6 @@ def main() -> None:
 
             ingame_info([
                 f'Fps : {int(clock.get_fps())}',
-                f'State : {'active' if var['active'] else 'passive'}',
                 f'last rubik rotation : {rubik.animation}',
                 f'Camera : {camera.name}',
                 f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',

@@ -1,0 +1,29 @@
+
+v 33.0 33.0 33.0
+v 33.0 -33.0 33.0
+v -33.0 -33.0 33.0
+v -33.0 33.0 33.0
+v 33.0 33.0 -33.0
+v 33.0 -33.0 -33.0
+v -33.0 -33.0 -33.0
+v -33.0 33.0 -33.0
+
+
+usemtl blue
+f 1 2 3 4
+
+usemtl white
+f 5 6 7 8
+
+usemtl red
+f 3 4 8 7
+
+usemtl orange
+f 1 2 6 5
+
+usemtl yellow
+f 1 4 8 5
+
+usemtl green
+f 2 3 7 6
+

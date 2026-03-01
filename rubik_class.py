@@ -2,6 +2,9 @@ import math
 import copy
 import random
 
+# local imports
+from obj_converter_class import ObjConverter
+
 """ Class Element """
 
 class Element:
@@ -27,15 +30,16 @@ class Element:
     """
     invert_index: dict = { 0 : (1, 2), 1 : (0, 2), 2 : (0, 1)}
 
-    def __init__(self, name: str, polygons: tuple[tuple,tuple], points: dict[str,list], visibility: bool):
+    def __init__(self, name: str, polygons: tuple[tuple,tuple], points: list[list], visibility: bool):
         # main properties
         self.name: str = name
-        self.points: dict[str,list] = points
+        self.points: list[list] = points
         self.rotation: list = [0, 0, 0]
         self.polygons = polygons
         self.visibility: bool = visibility
         # saving start points position
         self.__points_copy = copy.deepcopy(self.points)
+
 
     def reset(self) -> None:
         """ reset the object """
@@ -52,7 +56,7 @@ class Element:
         # inverted index
         inv_index: tuple = self.invert_index[index]
         # for all object`s points
-        for _point in self.points:
+        for _point, bob in enumerate(self.points):
             # get radius
             radius = math.hypot(self.points[_point][inv_index[0]], self.points[_point][inv_index[1]])
             # get angle
@@ -91,6 +95,8 @@ class Rubik:
         self.__animation_copy: dict =  self.animation.copy()
         # colors
         self.__colors = self.__create_colors()
+        # converter
+        self.converter = ObjConverter("assets/models/just_cube.obj", self.__colors)
         # elements
         self.elements: dict = {}
         self.__create_elements_cubes()
@@ -243,73 +249,97 @@ class Rubik:
         """ Creates cube parts of class Element
 
             changes: updates self.elements (adds cube parts) """
+        """
         def create_cube(_obj_name, points_offset, color_input):
-            """ helps to create cube """
             cube_color = ('red', 'yellow', 'green', 'blue', 'white', 'orange')
             color_output = ['gray', 'gray', 'gray', 'gray', 'gray', 'gray']
             for _num in color_input:
                 color_output[_num - 1] = cube_color[_num - 1]
-            colored = ((('1', '2', '3', '4'), self.__colors[color_output[0]]),
-                       (('5', '6', '7', '8'), self.__colors[color_output[1]]),
-                       (('3', '4', '8', '7'), self.__colors[color_output[2]]),
-                       (('1', '2', '6', '5'), self.__colors[color_output[3]]),
-                       (('1', '4', '8', '5'), self.__colors[color_output[4]]),
-                       (('2', '3', '7', '6'), self.__colors[color_output[5]]))
-            cube_points = {
-                '1': [33.0, 33.0, 33.0], '2': [33.0, -33.0, 33.0],
-                '3': [-33.0, -33.0, 33.0], '4': [-33.0, 33.0, 33.0],
-                '5': [33.0, 33.0, -33.0], '6': [33.0, -33.0, -33.0],
-                '7': [-33.0, -33.0, -33.0], '8': [-33.0, 33.0, -33.0],
-            }
-            for _point in cube_points:
-                cube_points[_point][0] += points_offset[0]
-                cube_points[_point][1] += points_offset[1]
-                cube_points[_point][2] += points_offset[2]
+            cube_points = [
+                [33.0, 33.0, 33.0]    , [33.0, -33.0, 33.0] ,
+                [-33.0, -33.0, 33.0]  , [-33.0, 33.0, 33.0] ,
+                [33.0, 33.0, -33.0]   , [33.0, -33.0, -33.0],
+                [-33.0, -33.0, -33.0] , [-33.0, 33.0, -33.0],
+            ]
+
+            colored_polygons = (
+                ((1, 2, 3, 4), self.__colors[color_output[0]]),
+                ((5, 6, 7, 8), self.__colors[color_output[1]]),
+                ((3, 4, 8, 7), self.__colors[color_output[2]]),
+                ((1, 2, 6, 5), self.__colors[color_output[3]]),
+                ((1, 4, 8, 5), self.__colors[color_output[4]]),
+                ((2, 3, 7, 6), self.__colors[color_output[5]]),
+                 )
+
+            for index, point in enumerate(cube_points):
+                cube_points[ index ][0] += points_offset[0]
+                cube_points[ index ][1] += points_offset[1]
+                cube_points[ index ][2] += points_offset[2]
             visibility = True
-            return [_obj_name, colored, cube_points, visibility]
+            return [_obj_name, colored_polygons, cube_points, visibility]
+        """
+
+        def create_cube(_obj_name, points_offset, color_input):
+            cube_color = ('red', 'yellow', 'green', 'blue', 'white', 'orange')
+            color_output = ['gray', 'gray', 'gray', 'gray', 'gray', 'gray']
+            # color
+            colored_polygons = copy.deepcopy(self.converter.colored_polygons)
+            pass
+
+            # adding offset
+            cube_points = copy.deepcopy(self.converter.points)
+            for index, point in enumerate(self.converter.points):
+                cube_points[index][0] += points_offset[0]
+                cube_points[index][1] += points_offset[1]
+                cube_points[index][2] += points_offset[2]
+            # visibility
+            visibility = True
+
+            return [_obj_name, colored_polygons, cube_points, visibility]
 
         # creating ObjectChanger objects
         self.elements.update({
             # FRONT
             # upper line
             'corner_lfu': Element(*create_cube('corner_lfu', (-66, 66, 66), (1, 3, 5))),
-            'cut_fu': Element(*create_cube('cut_fu', (0, 66, 66), (1, 5))),
+            'cut_fu'    : Element(*create_cube('cut_fu', (0, 66, 66), (1, 5))),
             'corner_rfu': Element(*create_cube('corner_rfu', (66, 66, 66), (1, 4, 5))),
             # middle line
-            'cut_lf': Element(*create_cube('cut_lf', (-66, 0, 66), (3, 1))),
-            'side_f': Element(*create_cube('side_f', (0, 0, 66), (1,))),
-            'cut_rf': Element(*create_cube('cut_rf', (66, 0, 66), (4, 1))),
+
+            'cut_lf'    : Element(*create_cube('cut_lf', (-66, 0, 66), (3, 1))),
+            'side_f'    : Element(*create_cube('side_f', (0, 0, 66), (1,))),
+            'cut_rf'    : Element(*create_cube('cut_rf', (66, 0, 66), (4, 1))),
             # down line
             'corner_lfd': Element(*create_cube('corner_lfd', (-66, -66, 66), (1, 3, 6))),
-            'cut_fd': Element(*create_cube('cut_fd', (0, -66, 66), (1, 6))),
+            'cut_fd'    : Element(*create_cube('cut_fd', (0, -66, 66), (1, 6))),
             'corner_rfd': Element(*create_cube('corner_rfd', (66, -66, 66), (1, 4, 6))),
 
             # MIDDLE
             # upper line
-            'cut_lu': Element(*create_cube('cut_lu', (-66, 66, 0), (3, 5))),
-            'side_u': Element(*create_cube('side_u', (0, 66, 0), (5,))),
-            'cut_ru': Element(*create_cube('cut_ru', (66, 66, 0), (4, 5))),
+            'cut_lu'    : Element(*create_cube('cut_lu', (-66, 66, 0), (3, 5))),
+            'side_u'    : Element(*create_cube('side_u', (0, 66, 0), (5,))),
+            'cut_ru'    : Element(*create_cube('cut_ru', (66, 66, 0), (4, 5))),
             # middle line
-            'side_l': Element(*create_cube('side_l', (-66, 0, 0), (3,))),
-            'cent_p': Element(*create_cube('cent_p', (0, 0, 0), ())),
-            'side_r': Element(*create_cube('side_r', (66, 0, 0), (4,))),
+            'side_l'    : Element(*create_cube('side_l', (-66, 0, 0), (3,))),
+            'cent_p'    : Element(*create_cube('cent_p', (0, 0, 0), ())),
+            'side_r'    : Element(*create_cube('side_r', (66, 0, 0), (4,))),
             # down line
-            'cut_ld': Element(*create_cube('cut_ld', (-66, -66, 0), (3, 6))),
-            'side_d': Element(*create_cube('side_d', (0, -66, 0), (6,))),
-            'cut_rd': Element(*create_cube('cut_rd', (66, -66, 0), (4, 6))),
+            'cut_ld'    : Element(*create_cube('cut_ld', (-66, -66, 0), (3, 6))),
+            'side_d'    : Element(*create_cube('side_d', (0, -66, 0), (6,))),
+            'cut_rd'    : Element(*create_cube('cut_rd', (66, -66, 0), (4, 6))),
 
             # BACK
             # upper line
             'corner_lbu': Element(*create_cube('corner_lbu', (-66, 66, -66), (2, 3, 5))),
-            'cut_bu': Element(*create_cube('cut_bu', (0, 66, -66), (2, 5))),
+            'cut_bu'    : Element(*create_cube('cut_bu', (0, 66, -66), (2, 5))),
             'corner_rbu': Element(*create_cube('corner_rbu', (66, 66, -66), (2, 4, 5))),
             # middle line
-            'cut_lb': Element(*create_cube('cut_lb', (-66, 0, -66), (3, 2))),
-            'side_b': Element(*create_cube('side_b', (0, 0, -66), (2,))),
-            'cut_rb': Element(*create_cube('cut_rb', (66, 0, -66), (4, 2))),
+            'cut_lb'    : Element(*create_cube('cut_lb', (-66, 0, -66), (3, 2))),
+            'side_b'    : Element(*create_cube('side_b', (0, 0, -66), (2,))),
+            'cut_rb'    : Element(*create_cube('cut_rb', (66, 0, -66), (4, 2))),
             # down line
             'corner_lbd': Element(*create_cube('corner_lbd', (-66, -66, -66), (2, 3, 6))),
-            'cut_bd': Element(*create_cube('cut_bd', (0, -66, -66), (2, 6))),
+            'cut_bd'    : Element(*create_cube('cut_bd', (0, -66, -66), (2, 6))),
             'corner_rbd': Element(*create_cube('corner_rbd', (66, -66, -66), (2, 4, 6))),
         })
 
@@ -319,26 +349,27 @@ class Rubik:
             changes: updates self.elements (adds buttons) """
         def create_button(_obj_name, points_offset, direction):
             """ helps to create button """
-            colored = ((('1', '2', '3', '4'), ((255, 255, 255), (255, 255, 255))),)
+            colored = (((1, 2, 3, 4), ((255, 255, 255), (255, 255, 255))),)
             cof = -1 if direction in ['b', 'l', 'd'] else 1
             if direction in ['f', 'b']:
-                _points = {'1': [33.0, 33.0, 0], '2': [33.0, -33.0, 0],
-                           '3': [-33.0, -33.0, 0], '4': [-33.0, 33.0, 0], }
-                index = (0, 1, 2)
+                _points = [[33.0, 33.0, 0]  , [33.0, -33.0, 0],
+                           [-33.0, -33.0, 0], [-33.0, 33.0, 0]]
+                color_index = (0, 1, 2)
             elif direction in ['l', 'r']:
-                _points = {'1': [0, 33.0, 33.0], '2': [0, -33.0, 33.0],
-                           '3': [0, -33.0, -33.0], '4': [0, 33.0, -33.0], }
-                index = (1, 2, 0)
+                _points = [[0, 33.0, 33.0]  , [0, -33.0, 33.0],
+                           [0, -33.0, -33.0], [0, 33.0, -33.0]]
+                color_index = (1, 2, 0)
             elif direction in ['u', 'd']:
-                _points = {'1': [33.0, 0, 33.0], '2': [33.0, 0, -33.0],
-                           '3': [-33.0, 0, -33.0], '4': [-33.0, 0, 33.0], }
-                index = (2, 0, 1)
-            for _point in colored[0][0]:
-                _points[_point][index[0]] += points_offset[0] * cof
-                _points[_point][index[1]] += points_offset[1] * cof
-                _points[_point][index[2]] += 100 * cof
+                _points = [[33.0, 0, 33.0]  , [33.0, 0, -33.0],
+                           [-33.0, 0, -33.0], [-33.0, 0, 33.0]]
+                color_index = (2, 0, 1)
+            for index, point in enumerate(colored[0][0]):
+                _points[index][color_index[0]] += points_offset[0] * cof
+                _points[index][color_index[1]] += points_offset[1] * cof
+                _points[index][color_index[2]] += 100 * cof
             visibility = False
             return [_obj_name, colored, _points, visibility]
+
         # buttons
         letter_list = (['u', 'l', 'd', 'r'], ['l', 'd', 'r', 'u'], ['d', 'r', 'u', 'l'], ['r', 'u', 'l', 'd'])
         for _index, side in enumerate(['f', 'r', 'b', 'l']):
