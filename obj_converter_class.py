@@ -51,8 +51,8 @@ class ObjConverter:
                         polygon_list = []
                         points_amount = len(words) - 1
                         for _index in range(points_amount):
-                            polygon_list.append(int(words[_index + 1][0]))
+                            polygon_list.append(int(words[_index + 1].split('/')[0]))
                         polygon = tuple(polygon_list)
-                        self.colored_polygons.append([polygon, self.__colors[color]])
+                        self.colored_polygons.append([polygon, color])
 
 

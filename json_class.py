@@ -19,7 +19,7 @@ class Json:
         default_data (dict): Starting dictionary, creates file if not founded
             Example: { info1 = None, info2 = None }
     """
-    def __init__(self, app_name: str, file_name : str, default_data: dict):
+    def __init__(self, app_name: str, file_name : str, default_data: dict) -> None:
         self.__app_name = app_name
         self.__file_name = file_name
         self.__default_dict = default_data

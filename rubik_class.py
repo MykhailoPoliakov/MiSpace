@@ -96,7 +96,7 @@ class Rubik:
         # colors
         self.__colors = self.__create_colors()
         # converter
-        self.converter = ObjConverter("assets/models/just_cube.obj", self.__colors)
+        self.converter = ObjConverter("assets/models/low_rubik.obj", self.__colors)
         # elements
         self.elements: dict = {}
         self.__create_elements_cubes()
@@ -233,8 +233,8 @@ class Rubik:
             'red': [(153, 0, 0)],
             'green': [(0, 102, 0)],
             'blue': [(0, 76, 153)],
-            'yellow': [(204, 102, 0)],
-            'orange': [(204, 204, 0)],
+            'orange': [(204, 102, 0)],
+            'yellow': [(204, 204, 0)],
             'white': [(255, 229, 204)],
             'gray': [(50, 50, 50)]
         }
@@ -246,45 +246,27 @@ class Rubik:
         return colors
 
     def __create_elements_cubes(self) -> None:
-        """ Creates cube parts of class Element
-
-            changes: updates self.elements (adds cube parts) """
         """
-        def create_cube(_obj_name, points_offset, color_input):
-            cube_color = ('red', 'yellow', 'green', 'blue', 'white', 'orange')
-            color_output = ['gray', 'gray', 'gray', 'gray', 'gray', 'gray']
-            for _num in color_input:
-                color_output[_num - 1] = cube_color[_num - 1]
-            cube_points = [
-                [33.0, 33.0, 33.0]    , [33.0, -33.0, 33.0] ,
-                [-33.0, -33.0, 33.0]  , [-33.0, 33.0, 33.0] ,
-                [33.0, 33.0, -33.0]   , [33.0, -33.0, -33.0],
-                [-33.0, -33.0, -33.0] , [-33.0, 33.0, -33.0],
-            ]
-
-            colored_polygons = (
-                ((1, 2, 3, 4), self.__colors[color_output[0]]),
-                ((5, 6, 7, 8), self.__colors[color_output[1]]),
-                ((3, 4, 8, 7), self.__colors[color_output[2]]),
-                ((1, 2, 6, 5), self.__colors[color_output[3]]),
-                ((1, 4, 8, 5), self.__colors[color_output[4]]),
-                ((2, 3, 7, 6), self.__colors[color_output[5]]),
-                 )
-
-            for index, point in enumerate(cube_points):
-                cube_points[ index ][0] += points_offset[0]
-                cube_points[ index ][1] += points_offset[1]
-                cube_points[ index ][2] += points_offset[2]
-            visibility = True
-            return [_obj_name, colored_polygons, cube_points, visibility]
+        Creates cube parts of class Element
+        Changes: updates self.elements (adds cube parts)
         """
-
+        cube_color = ( 'red', 'orange' , 'blue', 'green', 'white', 'yellow')
         def create_cube(_obj_name, points_offset, color_input):
-            cube_color = ('red', 'yellow', 'green', 'blue', 'white', 'orange')
-            color_output = ['gray', 'gray', 'gray', 'gray', 'gray', 'gray']
+            """ Helps to create cube """
             # color
-            colored_polygons = copy.deepcopy(self.converter.colored_polygons)
-            pass
+            colored_polygons: list = copy.deepcopy(self.converter.colored_polygons)
+
+            # list of colors cube would have
+            exact_colors = []
+            for num in color_input:
+                exact_colors.append(cube_color[num - 1])
+
+            # make inside polygons black
+            for index, colored_polygon in enumerate(colored_polygons,1):
+                if colored_polygon[1] not in exact_colors:
+                    colored_polygon[1] = self.__colors['gray']
+                else:
+                    colored_polygon[1] = self.__colors[colored_polygon[1]]
 
             # adding offset
             cube_points = copy.deepcopy(self.converter.points)
@@ -297,7 +279,7 @@ class Rubik:
 
             return [_obj_name, colored_polygons, cube_points, visibility]
 
-        # creating ObjectChanger objects
+        # creating Element objects (Rubik parts)
         self.elements.update({
             # FRONT
             # upper line
@@ -344,9 +326,10 @@ class Rubik:
         })
 
     def __create_elements_buttons(self) -> None:
-        """ Creates cube buttons of class Element
-
-            changes: updates self.elements (adds buttons) """
+        """
+        Creates cube buttons of class Element
+        Changes: updates self.elements (adds buttons)
+        """
         def create_button(_obj_name, points_offset, direction):
             """ helps to create button """
             colored = (((1, 2, 3, 4), ((255, 255, 255), (255, 255, 255))),)

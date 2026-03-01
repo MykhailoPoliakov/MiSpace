@@ -15,7 +15,7 @@ class Timer:
                 resets the timer
 
         """
-    def __init__(self):
+    def __init__(self) -> None:
         self.__running: bool = False
         self.__start_time: int = 0
         self.__time: int = 0

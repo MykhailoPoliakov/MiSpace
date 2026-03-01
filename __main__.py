@@ -24,8 +24,6 @@ def resource_path(relative_path):
 def get_texture(texture):
     return pygame.image.load(resource_path( f"assets/textures/{texture}") ).convert_alpha()
 
-
-
 """ Basic Functions """
 
 def basic_animation(lock_word, if_const, if_plus, else_minus):
@@ -47,12 +45,6 @@ def ingame_info(message):
         _text = _font.render(line, True, (255, 255, 255))
         screen.blit(_text, (15, 5 + _num * 35))
 
-
-""" Class Json """
-
-# object
-main_json = Json("MiRubik","MiRubik_data.json",
-                 {'sound' : True, 'best_time' : [None,None,None] })
 
 """ World Class """
 
@@ -156,8 +148,7 @@ class CameraChanger:
                     index = wrong_index - 1
                     # camera y rotation offset
                     radius = math.hypot(obj.points[index][0], obj.points[index][2])
-                    angle = angle_calc(radius,
-                                obj.points[index][0], obj.points[index][2]) - self.rotation[1]
+                    angle = angle_calc(radius, obj.points[index][0], obj.points[index][2]) - self.rotation[1]
                     cord_x = round(radius * math.sin(math.radians(angle)), 2)
                     cord_y = obj.points[index][1]
                     cord_z = round(radius * math.cos(math.radians(angle)), 2)
@@ -201,11 +192,6 @@ class CameraChanger:
 camera = CameraChanger('Camera',(550,540), (20,45))
 
 
-""" Class Rubik """
-
-# rubik
-rubik = Rubik()
-
 """ PyGame """
 
 pygame.init()
@@ -244,16 +230,13 @@ sounds = {
 }
 pygame.mixer.music.load("assets/sounds/cosmo.mp3")
 pygame.mixer.music.play(-1)
-# if silent mode is on
-if not main_json.data['sound']:
-    pygame.mixer.music.pause()
+
 
 # Fonts
 
 fonts = {
-    'sans': "assets/textures/sans.ttf",
-    'cosmo': "assets/textures/cosmo.otf",
-
+    'sans': "assets/fonts/sans.ttf",
+    'cosmo': "assets/fonts/cosmo.otf",
 }
 
 # Clickable Buttons
@@ -269,18 +252,34 @@ clicks = {
     'inspect'     : pygame.Rect(1315, 600, 300, 130),
 }
 
-""" Starting Variables """
+""" Classes """
 
-var['mode'] = 'menu'
-camera.size = 0.8
-camera.center = [550,540]
+# Claas Json
+main_json = Json("MiRubik", "MiRubik_data.json",
+                     {'sound': True, 'best_time': [None, None, None]})
 
-""" Main Cycle """
+# Class Timer
+timer = Timer()
+
+
+# Class Rubik
+rubik = Rubik()
+
 
 def main() -> None:
+    """ Main Function """
 
-    # Class Timer
-    timer = Timer()
+    """ Starting Checks and Variables """
+
+    # if silent mode is on
+    if not main_json.data['sound']:
+        pygame.mixer.music.pause()
+    # variables
+    var['mode'] = 'menu'
+    camera.size = 0.8
+    camera.center = [550, 540]
+
+    """ Main Cycle """
 
     running = True
     while running:
@@ -624,6 +623,8 @@ def main() -> None:
 
             ingame_info([
                 f'Fps : {int(clock.get_fps())}',
+            ])
+            """
                 f'last rubik rotation : {rubik.animation}',
                 f'Camera : {camera.name}',
                 f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
@@ -633,7 +634,8 @@ def main() -> None:
                 f'Timer : {timer.time}',
                 f'Front side rotation : {rubik.elements['side_f'].rotation}',
                 f'Center rotation : {rubik.elements['cent_p'].rotation}',
-            ])
+            """
+
 
 
         pygame.display.flip()
