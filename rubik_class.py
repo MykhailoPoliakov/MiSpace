@@ -6,10 +6,6 @@ from obj_converter_class import ObjConverter
 from element_class import Element
 
 
-
-
-""" Class Rubik """
-
 class Rubik:
     """
     something

@@ -1,6 +1,7 @@
 import pygame
 import math
 import sys, os
+import numpy as np
 
 # local classes import
 from json_class import Json
