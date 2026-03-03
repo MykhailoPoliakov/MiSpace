@@ -1,5 +1,6 @@
 import copy
 import random
+import numpy as np
 
 # local imports
 from obj_converter_class import ObjConverter
@@ -27,7 +28,7 @@ class Rubik:
         # colors
         self.__colors = self.__create_colors()
         # converter
-        self.converter = ObjConverter("assets/models/low_rubik.obj", self.__colors)
+        self.converter = ObjConverter("assets/models/high_rubik.obj", self.__colors)
         # elements
         self.elements: dict = {}
         self.__create_elements_cubes()

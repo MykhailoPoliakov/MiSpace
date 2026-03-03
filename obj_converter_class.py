@@ -1,7 +1,9 @@
+import numpy as np
+
 class ObjConverter:
     """
     Attributes:
-        self.points (list[ x,y,z ]):
+        self.points (np.array[ x,y,z ]):
             points of the object
 
         self.colored_polygons (list[ tuple[ points` indexes for polygon ] , list[ color ] ):
@@ -14,18 +16,19 @@ class ObjConverter:
 
     """
     def __init__(self, filename: str, colors: dict) -> None:
-        # main attributes
-        self.points: list = []
-        self.colored_polygons: list = []
         # local attributes
         self.__colors: dict = colors
         self.__filename: str = filename
         # make convertion, fill up self.points and self.colored_polygons
-        self.__convert_obj()
+        # main attributes
+        self.points , self.colored_polygons = self.__convert_obj()
 
-    def __convert_obj(self) -> None:
+
+    def __convert_obj(self) -> list:
         """ converts file.obj to lists of points and colored polygons """
         color: str = ''
+        points_list: list = []
+        colored_polygons = []
         # open .obj file
         with open(self.__filename, 'r') as file:
             for index, line in enumerate(file):
@@ -42,7 +45,7 @@ class ObjConverter:
                     # point line
                     case 'v':
                         points = [round(float(words[1]), 2), round(float(words[2]), 2), round(float(words[3]), 2)]
-                        self.points.append(points)
+                        points_list.append(points)
                     # color line
                     case 'usemtl':
                         color = words[1]
@@ -53,6 +56,14 @@ class ObjConverter:
                         for _index in range(points_amount):
                             polygon_list.append(int(words[_index + 1].split('/')[0]))
                         polygon = tuple(polygon_list)
-                        self.colored_polygons.append([polygon, color])
+                        colored_polygons.append([polygon, color])
+
+
+
+        # convert to an array
+        points_array = np.array(points_list, dtype=np.float32)
+        print(points_array)
+
+        return [points_array, colored_polygons]
 
 

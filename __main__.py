@@ -1,5 +1,4 @@
 import pygame
-import math
 import sys, os
 import numpy as np
 
@@ -38,12 +37,30 @@ def sound(track):
     if main_json.data['sound']:
         sounds[track].play()
 
+
+""" Input functions """
+
+def check_click() -> str:
+    new_list = []
+    for element, render_points, color, depth in camera.order[::-1]:
+        # if button`s depth < 0 mask won`t work
+        if not element.visibility:
+            for pair_points in render_points:
+                new_list.append(pair_points)
+            # mask creation
+            surf = pygame.Surface((1920, 1080), pygame.SRCALPHA)
+            pygame.draw.polygon(surf, (255, 255, 255), new_list)
+            mask = pygame.mask.from_surface(surf)
+            # check if click was in the polygon
+            if mask.get_at((pygame.mouse.get_pos())):
+                return element.name
+    return ''
+
 """ Output Functions """
 
 def ingame_info(message):
-    _font = pygame.font.Font(None, 40)
     for _num, line in enumerate(message):
-        _text = _font.render(line, True, (255, 255, 255))
+        _text = fonts['None40'].render(line, True, (255, 255, 255))
         screen.blit(_text, (15, 5 + _num * 35))
 
 
@@ -52,18 +69,14 @@ def ingame_info(message):
 class World:
     def __init__(self):
         self.solved = False
-        # rerendering screen
-        self.rerender_bool = False
 
-    def rerender(self):
-        self.rerender_bool = True
-
-    def reset(self):
+    @staticmethod
+    def reset():
         camera.reset()
         rubik.reset()
         for animation in anim:
             anim[animation] = 0
-        self.rerender()
+        camera.rerender_bool = True
 
 # world
 world = World()
@@ -83,30 +96,27 @@ class CameraChanger:
         self.order: list = []
         # save start rotation
         self.init_rotation: tuple = rotation
+        # rerender bool
+        self.rerender_bool = False
 
     def reset(self) -> None:
         """ full camera reset """
         self.rotation = list(self.init_rotation)
         self.size = 1
-        world.rerender()
 
     def rotate(self,index: int, add_angle: int | float) -> None:
         """ rotate the camera """
-        self.rotation[index] += add_angle
-        if self.rotation[index] > 360:
-            self.rotation[index] -= 360
-        elif self.rotation[index] < -360:
-            self.rotation[index] += 360
-        world.rerender()
+        self.rotation[index] = (self.rotation[index] + add_angle) % 360
+        self.rerender_bool = True
 
     def resize(self,add_size) -> None:
         """ resize the camera """
         if (self.size < 2 or add_size < 0) and (self.size > 0.3 or add_size > 0):
             self.size *= 1 + add_size / 20
-            world.rerender()
+            self.rerender_bool = True
 
 
-    def calculate(self):
+    def calculate(self, obj_dict: dict) -> None:
         """
             1) calculating points position on the screen
             2) creating polygon presets, including polygon depth,color and points
@@ -125,68 +135,74 @@ class CameraChanger:
                 f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
             return f_colors
 
-        def sort(_order, condition, content):
-            """sort object or polygon based on z position"""
-            if _order:
-                for _num in range(len(_order)):
-                    if condition > _order[_num][1]:
-                        return _order.insert(_num, content)
-            return _order.append(content)
+        # y
+        rad_angle = np.radians( self.rotation[1] )
+        cos_a, sin_a = np.cos(rad_angle), np.sin(rad_angle)
 
-        def angle_calc(_radius, _cord_0, _cord_1):
-            """ get angle of the point to the center """
-            _angle = math.degrees(math.acos(_cord_1 / _radius)) if _radius != 0 else 0
-            return 360 - _angle if _cord_0 < 0 else _angle
+        rotation_matrix_y = np.array([
+            [cos_a, 0, sin_a],
+            [0, 1, 0],
+            [-sin_a, 0, cos_a],
+        ], dtype=np.float32)
+
+        # x
+        rad_angle = np.radians( -self.rotation[0] )
+        cos_a, sin_a = np.cos(rad_angle), np.sin(rad_angle)
+
+        rotation_matrix_x = np.array([
+            [1, 0, 0],
+            [0, cos_a, -sin_a],
+            [0, sin_a, cos_a],
+        ], dtype=np.float32)
+
+
 
         self.order = []
-        for obj in rubik.elements.values():
+        for element in obj_dict.values():
+
+            points = element.points.copy()
+            # camera y and x rotation offset
+
+            points @= rotation_matrix_y
+            points @= rotation_matrix_x
+
+            # resizing
+            if self.size != 1:
+                points *= self.size
+
             # creating colored polygons from points and sorting them
-            polygons = {} ; pol_order = [] ; obj_depth = 0
-            for polygon, color in obj.polygons:
-                polygons[polygon] = {'render_points': [], 'depth': 0}
-                for wrong_index in polygon:
+            for polygon, color in element.polygons:
+                polygons = {'render_points': [], 'depth': 0}
+                for index in polygon:
                     # real index
-                    index = wrong_index - 1
-                    # camera y rotation offset
-                    radius = math.hypot(obj.points[index][0], obj.points[index][2])
-                    angle = angle_calc(radius, obj.points[index][0], obj.points[index][2]) - self.rotation[1]
-                    cord_x = round(radius * math.sin(math.radians(angle)), 2)
-                    cord_y = obj.points[index][1]
-                    cord_z = round(radius * math.cos(math.radians(angle)), 2)
-                    # camera x rotation offset and final camera cord output
-                    radius = math.hypot(cord_y, cord_z)
-                    angle = angle_calc(radius, cord_y, cord_z) - self.rotation[0]
-                    cord_x = round(cord_x * self.size, 2)
-                    cord_y = round(radius * math.sin(math.radians(angle)) * self.size, 2)
-                    cord_z = round(radius * math.cos(math.radians(angle)) * self.size, 2)
+                    index -= 1
+
+                    # save data
+                    cord_x, cord_y, cord_z = points[index]
 
                     # saving point output cords
-                    mult = round(((( cord_z + 125) / 375) + 2), 2)
-                    polygons[polygon]['render_points'].append((int(camera.center[0] + cord_x * mult),
-                                                               int(camera.center[1] - cord_y * mult)))
-                    # saving point depth
-                    polygons[polygon]['depth'] += cord_z
-                    if -50 < cord_y < 50 and -50 < cord_x < 50:
-                        polygons[polygon]['depth'] += 6
+                    mult = 1000 / (cord_z + 1000)
+                    polygons['render_points'].append((int(camera.center[0] + cord_x / mult),
+                                                      int(camera.center[1] - cord_y / mult)))
+                    # saving depth of the polygon
+                    polygons['depth'] += cord_z
 
-                # saving object depth
-                obj_depth += polygons[polygon]['depth']
                 # color of the polygon calculation
-                final_color = (calculate_color(polygons[polygon]['depth'] / 4, color[0]),
-                               calculate_color(polygons[polygon]['depth'] / 4, color[1]))
-                # in "pol_order" sorting all polygons of an object
-                sort(pol_order, polygons[polygon]['depth'], (polygon, polygons[polygon]['depth'], final_color))
-            # in "order" sorting object itself
-            sort(self.order, obj_depth, (obj, obj_depth, pol_order[::-1], polygons))
+                color = (calculate_color(polygons['depth'] / 4, color[0]),
+                         calculate_color(polygons['depth'] / 4, color[1]))
+
+                # adding to order
+                self.order.append(( element, polygons['render_points'], color, polygons['depth']))
+        # sort by depth
+        self.order = sorted(self.order, key=lambda item: item[ -1 ])
 
     def render(self):
         """ rendering all objects` polygons relying on self.order """
-        for obj_info in self.order[::-1]:
-            if obj_info[0].visibility:
-                for _polygon, _depth, _color in obj_info[2]:
-                    if var['solid']:
-                        pygame.draw.polygon(screen, _color[0], obj_info[3][_polygon]['render_points'])
-                    pygame.draw.polygon(screen, _color[1], obj_info[3][_polygon]['render_points'], 3)
+        for element, render_points, color, depth in self.order:
+            if element.visibility:
+                pygame.draw.polygon(screen, color[0], render_points)
+                pygame.draw.polygon(screen, color[1], render_points, 3)
+
 
 
 # cameras
@@ -235,9 +251,19 @@ pygame.mixer.music.play(-1)
 
 # Fonts
 
-fonts = {
+bold_fonts = {
     'sans': "assets/fonts/sans.ttf",
     'cosmo': "assets/fonts/cosmo.otf",
+}
+fonts = {
+    'cosmo170' : pygame.font.Font( bold_fonts["cosmo"] , 170),
+    'cosmo80'  : pygame.font.Font( bold_fonts["cosmo"] , 80),
+    'sans40'   : pygame.font.Font( bold_fonts["sans"] , 40),
+    'None40'   : pygame.font.Font( None , 40),
+}
+texts = {
+    'play'    : fonts['cosmo170'].render("play", True, (255, 255, 255)),
+    'inspect' : fonts['cosmo80'].render("INSPECT", True, (255, 255, 255))
 }
 
 # Clickable Buttons
@@ -287,14 +313,18 @@ def main() -> None:
 
         """ BRAIN """
 
-        # objects re-render if change in camera
-        if world.rerender_bool:
-            world.rerender_bool = False
-            camera.calculate()
         # objects re-render if change in rubik
         if rubik.rerender_bool:
             rubik.rerender_bool = False
-            camera.calculate()
+            rerender = True
+        # objects re-render if change in camera
+        if camera.rerender_bool:
+            camera.rerender_bool = False
+            rerender = True
+
+        if rerender:
+            rerender = False
+            camera.calculate(rubik.elements)
 
         # timer update
         rubik.solved = rubik.check_solved()
@@ -443,6 +473,7 @@ def main() -> None:
 
 
                 case 'game':
+                    # top menu buttons
 
                     if clicks['menu'].collidepoint(mouse_pos) and not (event.type == pygame.MOUSEMOTION and mouse_keys[2]):
                         var['mouse_lock'] = 'menu'
@@ -462,22 +493,25 @@ def main() -> None:
                         var['game_type'] = 'play'
                         sound('select')
 
+                    # CAMERA
 
                     # camera sizing with mouse
                     if event.type == pygame.MOUSEWHEEL:
                         camera.resize(event.y)
-                    # camera rotation with mouse and cursor control
+
+                    # make mouse invisible while rotation happening
                     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                         pygame.mouse.set_visible(False) ; pygame.event.set_grab(True)
                         mouse_cords = pygame.mouse.get_pos()
-
                     elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
                         pygame.mouse.set_visible(True) ; pygame.event.set_grab(False)
                         pygame.mouse.set_pos(mouse_cords)
 
+                    # camera rotation
                     elif event.type == pygame.MOUSEMOTION and mouse_keys[2]:
                         dx, dy = event.rel
-                        if (camera.rotation[0] < 85 or dy < 0) and (camera.rotation[0] > -85 or dy > 0):
+                        if (( 0 < camera.rotation[0] + 90 < 170 and dy > 0)
+                        or (  80 < camera.rotation[0] + 90 < 360 and  dy < 0 )) or True:
                             camera.rotate(0, dy / 20)
                         camera.rotate(1, -dx / 20)
 
@@ -487,50 +521,42 @@ def main() -> None:
                         rubik.shuffle_val = 'fast' if rubik.shuffle_val != 'fast' else ''
 
 
+
                     # informating if any button was activated
                     elif not rubik.animation['button_name']:
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not mouse_keys[2]:
-                            new_list = []
-                            for _object in camera.order:
-                                # if button`s depth < 0 mask won`t work
-                                if _object[0].name[:6] == 'button' and _object[1] > 0:
-                                    for point in list(_object[3][( 1, 2, 3, 4 )]['render_points']):
-                                        new_list.append((point[0], point[1]))
-                                    button_name = _object[0].name
-                                    # mask creation
-                                    surf = pygame.Surface((1920, 1080), pygame.SRCALPHA)
-                                    pygame.draw.polygon(surf, (255, 255, 255), new_list)
-                                    mask = pygame.mask.from_surface(surf)
-                                    # check if click was in the polygon
-                                    if mask.get_at((pygame.mouse.get_pos())):
-                                        var['motion_start'] = button_name
-                                        dx, dy = 0,0
-                                        break
+                            # check if any of the rubik buttons were pressed
+                            var['motion_start'] = check_click()
+                            # reset mouse movement
+                            if var['motion_start']:
+                                dx, dy = 0, 0
+
                         # if after button press action in any direction was made
                         if var['motion_start']:
                             if event.type == pygame.MOUSEMOTION and mouse_keys[0]:
                                 dx += event.rel[0] ; dy += event.rel[1]
                                 # inversion of mirrored side
                                 if   dx >  30:
-                                    rubik.animation['button_name'] = var['motion_start']
                                     rubik.animation['button_direction'] = 'r'
 
                                 elif dy < -30:
                                     inv_let = 'd' if var['motion_start'][-2] in ['b', 'r'] and \
                                                      var['motion_start'][-1] not in ['d','u'] else 'u'
-                                    rubik.animation['button_name'] = var['motion_start']
                                     rubik.animation['button_direction'] = inv_let
                                 elif dx < -30:
-                                    rubik.animation['button_name'] = var['motion_start']
+
                                     rubik.animation['button_direction'] = 'l'
                                 elif dy >  30:
                                     inv_let = 'u' if var['motion_start'][-2] in ['b', 'r'] and \
                                                      var['motion_start'][-1] not in ['d','u'] else 'd'
-                                    rubik.animation['button_name'] = var['motion_start']
                                     rubik.animation['button_direction'] = inv_let
                                 # sounds
-                                if rubik.animation['button_name']:
-                                    if var['mode'] == 'game' and rubik.shuffle_val != 'fast' and main_json.data['sound']:
+                                if rubik.animation['button_direction']:
+
+                                    rubik.animation['button_name'] = var['motion_start']
+
+                                    # sounds
+                                    if not rubik.shuffle_val:
                                         sound('click')
                                     # turning off the switch
                                     var['motion_start'] = ''
@@ -550,26 +576,22 @@ def main() -> None:
             # start menu
             case 'menu':
                 # main menu buttons
-                font = pygame.font.Font( fonts["cosmo"] , 170)
-                text = font.render("play", True, (255, 255, 255))
-                screen.blit(text, (1300, 350))
 
-                font = pygame.font.Font( fonts["cosmo"] , 80)
-                text = font.render("INSPECT", True, (255, 255, 255))
-                screen.blit(text, (1315, 600))
+                screen.blit(texts['play'], (1300, 350))
+
+                screen.blit(texts['inspect'], (1315, 600))
 
                 screen.blit(textures['black'], (0, 0))
 
                 # top 3 best runs
-                font = pygame.font.Font( fonts["sans"] , 40)
                 if main_json.data['best_time'][0] or True:
-                    text = font.render(f"1. {main_json.data['best_time'][0]}", True, (255, 255, 255))
+                    text = fonts['sans40'].render(f"1. {main_json.data['best_time'][0]}", True, (255, 255, 255))
                     screen.blit(text, (1650, 15))
                 if main_json.data['best_time'][1] or True:
-                    text = font.render(f"2. {main_json.data['best_time'][1]}", True, (255, 255, 255))
+                    text = fonts['sans40'].render(f"2. {main_json.data['best_time'][1]}", True, (255, 255, 255))
                     screen.blit(text, (1650, 55))
                 if main_json.data['best_time'][2] or True:
-                    text = font.render(f"3. {main_json.data['best_time'][2]}", True, (255, 255, 255))
+                    text = fonts['sans40'].render(f"3. {main_json.data['best_time'][2]}", True, (255, 255, 255))
                     screen.blit(text, (1650, 95))
 
                 # sound on/of
@@ -624,8 +646,6 @@ def main() -> None:
 
             ingame_info([
                 f'Fps : {int(clock.get_fps())}',
-            ])
-            """
                 f'last rubik rotation : {rubik.animation}',
                 f'Camera : {camera.name}',
                 f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
@@ -635,7 +655,8 @@ def main() -> None:
                 f'Timer : {timer.time}',
                 f'Front side rotation : {rubik.elements['side_f'].rotation}',
                 f'Center rotation : {rubik.elements['cent_p'].rotation}',
-            """
+            ])
+
 
 
 

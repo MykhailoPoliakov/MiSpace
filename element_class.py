@@ -1,5 +1,6 @@
 import math
 import copy
+import numpy as np
 
 class Element:
     """
@@ -24,10 +25,10 @@ class Element:
     """
     invert_index: dict = { 0 : (1, 2), 1 : (0, 2), 2 : (0, 1)}
 
-    def __init__(self, name: str, polygons: tuple[tuple,tuple], points: list[list], visibility: bool):
+    def __init__(self, name: str, polygons: tuple[tuple,tuple], points: np.ndarray, visibility: bool):
         # main properties
         self.name: str = name
-        self.points: list[list] = points
+        self.points: np.ndarray = points
         self.rotation: list = [0, 0, 0]
         self.polygons = polygons
         self.visibility: bool = visibility
@@ -41,23 +42,40 @@ class Element:
         self.points = copy.deepcopy(self.__points_copy)
 
     def rotate(self, index: int, add_angle: int | float) -> None:
-        """ rotate object """
-        def angle_calc(_radius, cord_0, cord_1):
-            """ get angle of the point to the center """
-            _angle = math.degrees(math.acos( cord_1 / _radius )) if _radius != 0 else 0
-            return 360 - _angle if cord_0 < 0 else _angle
 
-        # inverted index
-        inv_index: tuple = self.invert_index[index]
-        # for all object`s points
-        for _point, bob in enumerate(self.points):
-            # get radius
-            radius = math.hypot(self.points[_point][inv_index[0]], self.points[_point][inv_index[1]])
-            # get angle
-            angle = angle_calc(radius, self.points[_point][inv_index[0]], self.points[_point][inv_index[1]]) - add_angle
-            # update points dictionary
-            self.points[_point][inv_index[0]] = round(radius * math.sin(math.radians(angle)), 2)
-            self.points[_point][inv_index[1]] = round(radius * math.cos(math.radians(angle)), 2)
+        match index:
+            case 2:
+                # z
+                rad_angle = np.radians( -add_angle )
+                cos_a, sin_a = np.cos( rad_angle), np.sin( rad_angle)
+
+                rotation_matrix =  np.array([
+                    [cos_a , -sin_a,    0],
+                    [sin_a , cos_a ,    0],
+                    [0     ,      0,    1],
+                ], dtype=np.float32)
+            case 1:
+                # y
+                rad_angle = np.radians( add_angle )
+                cos_a, sin_a = np.cos( rad_angle), np.sin( rad_angle)
+
+                rotation_matrix = np.array([
+                    [cos_a ,    0, sin_a],
+                    [0     ,    1,     0],
+                    [-sin_a,    0, cos_a],
+                ], dtype=np.float32)
+            case 0:
+                # x
+                rad_angle = np.radians(-add_angle)
+                cos_a, sin_a = np.cos( rad_angle), np.sin( rad_angle)
+
+                rotation_matrix = np.array([
+                    [   1,     0,      0],
+                    [   0, cos_a, -sin_a],
+                    [   0, sin_a,  cos_a],
+                ], dtype=np.float32)
+
+        self.points = self.points @ rotation_matrix
 
         # update object`s rotation angle
         self.rotation[index] -= add_angle
