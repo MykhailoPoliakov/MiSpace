@@ -1,6 +1,5 @@
 import copy
 import random
-import numpy as np
 
 # local imports
 from obj_converter_class import ObjConverter
@@ -62,9 +61,10 @@ class Rubik:
         self.animation['button_direction'] = random.choice(['l', 'r', 'u', 'd'])
 
     def check_solved(self):
-        for place in self.state:
-            if self.elements[ self.state[ place ] ].rotation != self.elements[ 'cent_p' ].rotation:
-                return False
+        for place in self.elements:
+            if self.elements[ place ].visibility:
+                if self.elements[ place ].rotation != self.elements[ 'cent_p' ].rotation:
+                    return False
         return True
 
     def reset(self):
@@ -168,7 +168,7 @@ class Rubik:
             'orange': [(204, 102, 0)],
             'yellow': [(204, 204, 0)],
             'white': [(255, 229, 204)],
-            'gray': [(50, 50, 50)]
+            'gray': [(15, 15, 15)]
         }
         for color in colors:
             colors[color].append(

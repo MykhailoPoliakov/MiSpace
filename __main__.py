@@ -1,14 +1,15 @@
 import pygame
 import sys, os
-import numpy as np
 
 # local classes import
 from json_class import Json
 from timer_class import Timer
 from rubik_class import Rubik
+from camera_class import Camera
 
 # globals
-var = {'analytic' : False, 'solid' : True, 'mouse_lock' : '', 'flag' : '',
+
+var = {'analytic' : False, 'mouse_lock' : '', 'flag' : '',
        'motion_start' : '', 'mode' : '', 'mode_anim' : ['',0]}
 
 anim = {'menu' : 0, 'win_fade' : 0, 'restart' : 0,}
@@ -68,7 +69,7 @@ def ingame_info(message):
 
 class World:
     def __init__(self):
-        self.solved = False
+        self.rerender_bool = True
 
     @staticmethod
     def reset():
@@ -78,136 +79,19 @@ class World:
             anim[animation] = 0
         camera.rerender_bool = True
 
-# world
-world = World()
-
-""" Camera Class """
-
-class CameraChanger:
-    """ Calculating all points` position on the screen and rendering objects in order """
-
-    def __init__(self, name: str, center: tuple, rotation: tuple = (0,0)):
-        # main properties
-        self.name: str = name
-        self.rotation: list = list(rotation)
-        self.size: float = 1
-        self.center: list = list(center)
-        # all objects and their`s info order (for rendering)
-        self.order: list = []
-        # save start rotation
-        self.init_rotation: tuple = rotation
-        # rerender bool
-        self.rerender_bool = False
-
-    def reset(self) -> None:
-        """ full camera reset """
-        self.rotation = list(self.init_rotation)
-        self.size = 1
-
-    def rotate(self,index: int, add_angle: int | float) -> None:
-        """ rotate the camera """
-        self.rotation[index] = (self.rotation[index] + add_angle) % 360
-        self.rerender_bool = True
-
-    def resize(self,add_size) -> None:
-        """ resize the camera """
-        if (self.size < 2 or add_size < 0) and (self.size > 0.3 or add_size > 0):
-            self.size *= 1 + add_size / 20
+    def rerender(self):
+        # objects re-render if change in rubik
+        if rubik.rerender_bool:
+            rubik.rerender_bool = False
+            self.rerender_bool = True
+        # objects re-render if change in camera
+        if camera.rerender_bool:
+            camera.rerender_bool = False
             self.rerender_bool = True
 
-
-    def calculate(self, obj_dict: dict) -> None:
-        """
-            1) calculating points position on the screen
-            2) creating polygon presets, including polygon depth,color and points
-            3) saving all object`s polygons in order
-            4) saving object in self.order for rendering later
-        """
-        def calculate_color(_depth, _colors):
-            """calculate color based on z position of an object"""
-            f_colors = []
-            limit = 80 * self.size
-            if _depth > limit:
-                return _colors
-            elif _depth < -limit:
-                return int(_colors[0] / 1.5), int(_colors[1] / 1.5), int(_colors[2] / 1.5)
-            for _color in _colors:
-                f_colors.append(int(_color / (1 + ((_depth - limit) / -40))))
-            return f_colors
-
-        # y
-        rad_angle = np.radians( self.rotation[1] )
-        cos_a, sin_a = np.cos(rad_angle), np.sin(rad_angle)
-
-        rotation_matrix_y = np.array([
-            [cos_a, 0, sin_a],
-            [0, 1, 0],
-            [-sin_a, 0, cos_a],
-        ], dtype=np.float32)
-
-        # x
-        rad_angle = np.radians( -self.rotation[0] )
-        cos_a, sin_a = np.cos(rad_angle), np.sin(rad_angle)
-
-        rotation_matrix_x = np.array([
-            [1, 0, 0],
-            [0, cos_a, -sin_a],
-            [0, sin_a, cos_a],
-        ], dtype=np.float32)
-
-
-
-        self.order = []
-        for element in obj_dict.values():
-
-            points = element.points.copy()
-            # camera y and x rotation offset
-
-            points @= rotation_matrix_y
-            points @= rotation_matrix_x
-
-            # resizing
-            if self.size != 1:
-                points *= self.size
-
-            # creating colored polygons from points and sorting them
-            for polygon, color in element.polygons:
-                polygons = {'render_points': [], 'depth': 0}
-                for index in polygon:
-                    # real index
-                    index -= 1
-
-                    # save data
-                    cord_x, cord_y, cord_z = points[index]
-
-                    # saving point output cords
-                    mult = 1000 / (cord_z + 1000)
-                    polygons['render_points'].append((int(camera.center[0] + cord_x / mult),
-                                                      int(camera.center[1] - cord_y / mult)))
-                    # saving depth of the polygon
-                    polygons['depth'] += cord_z
-
-                # color of the polygon calculation
-                color = (calculate_color(polygons['depth'] / 4, color[0]),
-                         calculate_color(polygons['depth'] / 4, color[1]))
-
-                # adding to order
-                self.order.append(( element, polygons['render_points'], color, polygons['depth']))
-        # sort by depth
-        self.order = sorted(self.order, key=lambda item: item[ -1 ])
-
-    def render(self):
-        """ rendering all objects` polygons relying on self.order """
-        for element, render_points, color, depth in self.order:
-            if element.visibility:
-                pygame.draw.polygon(screen, color[0], render_points)
-                pygame.draw.polygon(screen, color[1], render_points, 3)
-
-
-
-# cameras
-camera = CameraChanger('Camera',(550,540), (20,45))
-
+        if self.rerender_bool:
+            self.rerender_bool = False
+            camera.calculate(rubik.elements)
 
 """ PyGame """
 
@@ -248,7 +132,6 @@ sounds = {
 pygame.mixer.music.load("assets/sounds/cosmo.mp3")
 pygame.mixer.music.play(-1)
 
-
 # Fonts
 
 bold_fonts = {
@@ -279,7 +162,13 @@ clicks = {
     'inspect'     : pygame.Rect(1315, 600, 300, 130),
 }
 
-""" Classes """
+""" Objects """
+
+# World Class
+world = World()
+
+# Class Camera
+camera = Camera((550,540), (20,45))
 
 # Claas Json
 main_json = Json("MiRubik", "MiRubik_data.json",
@@ -313,18 +202,7 @@ def main() -> None:
 
         """ BRAIN """
 
-        # objects re-render if change in rubik
-        if rubik.rerender_bool:
-            rubik.rerender_bool = False
-            rerender = True
-        # objects re-render if change in camera
-        if camera.rerender_bool:
-            camera.rerender_bool = False
-            rerender = True
-
-        if rerender:
-            rerender = False
-            camera.calculate(rubik.elements)
+        world.rerender()
 
         # timer update
         rubik.solved = rubik.check_solved()
@@ -432,11 +310,6 @@ def main() -> None:
                 var['analytic'] = True if var['analytic'] == False else False
                 sound('select')
 
-            # not solid mode (f4)
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_F4:
-                var['solid'] = True if var['solid'] == False else False
-                sound('select')
-
             # silent mode
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and clicks['menu_sound'].collidepoint(mouse_pos):
                 # updating the value
@@ -515,6 +388,10 @@ def main() -> None:
                             camera.rotate(0, dy / 20)
                         camera.rotate(1, -dx / 20)
 
+                    #(for testing)
+                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_g:
+                        for element in rubik.elements.values():
+                            print(f"{element.name} : {element.rotation}")
 
                     # shuffle mode activation (for testing)
                     elif event.type == pygame.KEYDOWN and event.key == pygame.K_b:
@@ -568,7 +445,10 @@ def main() -> None:
         screen.blit(textures['fade'], (0, 0))
 
         # objects output render
-        camera.render()
+        for element, render_points, color, depth in camera.order:
+            if element.visibility:
+                pygame.draw.polygon(screen, color[0], render_points)
+                pygame.draw.polygon(screen, color[1], render_points, 3)
 
         # depending on current mode
         match var['mode']:
@@ -610,7 +490,7 @@ def main() -> None:
             # in-game animation
             case 'game':
                 # upper menu output
-                if not world.solved:
+                if not rubik.solved:
                     basic_animation('menu', 90, 9, 3)
                 if anim['menu'] > 0:
                     cords = (0, -90 + anim['menu'])
@@ -628,7 +508,9 @@ def main() -> None:
                     screen.blit(text, (cords[0] + 1650, cords[1] + 25))
 
                 # if rubik is solved
-                if world.solved:
+
+                if rubik.solved:
+                    print(1)
                     if anim['menu'] < 90:
                         anim['menu'] += 5
                     if anim['win_fade'] < 90:
@@ -647,17 +529,14 @@ def main() -> None:
             ingame_info([
                 f'Fps : {int(clock.get_fps())}',
                 f'last rubik rotation : {rubik.animation}',
-                f'Camera : {camera.name}',
-                f'Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
+                f'Camera Rotation : x {camera.rotation[0]:.0f}° y {camera.rotation[1]:.0f}°',
                 f'Size : {camera.size:.2f}',
                 f'Mode : {var["mode"]}',
                 f'Top menu anim. :{anim['menu']} {var['mouse_lock']}',
                 f'Timer : {timer.time}',
-                f'Front side rotation : {rubik.elements['side_f'].rotation}',
-                f'Center rotation : {rubik.elements['cent_p'].rotation}',
+                f'Center : {rubik.elements['cent_p'].rotation}',
+                f'Front : {rubik.elements['side_f'].rotation}',
             ])
-
-
 
 
         pygame.display.flip()
